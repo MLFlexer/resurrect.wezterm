@@ -1,9 +1,13 @@
 local wezterm = require("wezterm")
 
----@alias gui_window any
----@alias window_state any
----@alias tab_state any
+---@alias tab_size {rows: integer, cols: integer, pixel_width: integer, pixel_height: integer, dpi: integer}
+---@alias workspace_state {workspace: string, window_states: window_state[]}
+---@alias window_state {title: string, tabs: tab_state[], workspace: string, size: tab_size}
+---@alias tab_state {title: string, pane_tree: pane_tree, is_active: boolean}
 ---@alias MuxTab any
+---@alias MuxWindow any
+
+---@alias restore_opts {relative: boolean?, absolute: boolean?, pane: Pane?, tab: MuxTab?, process_function: fun(args: string): string[]?}
 
 -- TODO: enable by default
 local function enable_defaults(url)
@@ -16,7 +20,7 @@ local function enable_defaults(url)
 end
 
 local pane_tree_mod = require("plugins.plugin.pane_tree")
-local save_state_dir = wezterm.home_dir .. ".local/share/wezterm/resurrect/"
+local save_state_dir = wezterm.home_dir .. "/.local/share/wezterm/resurrect/"
 
 ---Changes the directory to save the state to
 ---@param directory string
@@ -32,7 +36,6 @@ local function get_tab_state(tab)
 
 	local tab_state = {
 		title = tab:get_title(),
-		size = tab:get_size(),
 		pane_tree = pane_tree_mod.create_pane_tree(panes),
 	}
 
@@ -58,8 +61,6 @@ local function load_json(file_path)
 	return wezterm.json_parse(json)
 end
 
----@alias restore_opts {workspace: boolean?, named: boolean?, name: string, relative: boolean?, absolute: boolean?, process_function: fun(args: string): string[]?}
-
 ---Function used to split panes when mapping over the pane_tree
 ---@param opts restore_opts
 ---@return fun(pane_tree): pane_tree
@@ -78,11 +79,10 @@ local function make_splits(opts)
 				split_args.size = bottom.height
 			end
 
-			if opts.process_function then
-				split_args.args = opts.process_function(bottom.process)
-			end
-
 			bottom.pane = pane:split(split_args)
+			if opts.process_function then
+				bottom.pane:send_text(opts.process_function(bottom.process))
+			end
 		end
 
 		local right = pane_tree.right
@@ -94,11 +94,10 @@ local function make_splits(opts)
 				split_args.size = right.width
 			end
 
-			if opts.process_function then
-				split_args.args = opts.process_function(right.process)
-			end
-
 			right.pane = pane:split(split_args)
+			if opts.process_function then
+				right.pane:send_text(opts.process_function(right.process))
+			end
 		end
 		return pane_tree
 	end
@@ -109,22 +108,24 @@ end
 ---@param pane_tree pane_tree
 ---@param opts restore_opts
 local function restore_tab(tab, pane_tree, opts)
-	pane_tree.pane = tab:active_pane()
+	if opts.pane then
+		pane_tree.pane = opts.pane
+	else
+		pane_tree.pane = tab:active_pane()
+	end
 	pane_tree_mod.map(pane_tree, make_splits(opts))
 end
 
 ---Returns the state of the window
----@param window gui_window
+---@param window MuxWindow
 ---@return window_state
 local function get_window_state(window)
-	local mux_win = window:mux_window()
 	local window_state = {
-		workspace = window:active_workspace(),
-		title = mux_win:get_title(),
+		title = window:get_title(),
 		tabs = {},
 	}
 
-	local tabs = mux_win:tabs_with_info()
+	local tabs = window:tabs_with_info()
 
 	for i, tab in ipairs(tabs) do
 		local tab_state = get_tab_state(tab.tab)
@@ -132,65 +133,104 @@ local function get_window_state(window)
 		window_state.tabs[i] = tab_state
 	end
 
+	window_state.size = tabs[1].tab:get_size()
+
 	return window_state
 end
 
 ---restore window state
----@param window any
+---@param window MuxWindow
 ---@param opts? restore_opts
----@return unknown
-local function restore_window(window, opts)
-	local mux_win = window:mux_window()
-	if #mux_win:tabs() > 1 then
-		wezterm.log_error("Cannot restore tabs, on window with more than 1 tab.")
-	end
-	local active_tab = window:active_tab()
-
-	if #active_tab:panes() > 1 then
-		wezterm.log_error("Cannot restore panes, in tab with more than 1 pane.")
-	end
-	local active_pane = window:active_pane()
-
-	local state_path
+local function restore_window(window, window_state, opts)
 	if opts then
-		if opts.workspace then
-			state_path = string.format("%sworkspace/%s.json", save_state_dir, opts.name:gsub("/", "+"))
-		elseif opts.named then
-			state_path = string.format("%snamed/%s.json", save_state_dir, opts.name)
-		end
 	else
 		opts = {}
-		state_path = string.format(
-			"%scwd/%s.json",
-			save_state_dir,
-			window:active_pane():get_current_working_dir():gsub("/", "+")
-		)
+		if #window:tabs() > 1 then
+			wezterm.log_error("Cannot restore tabs, on window with more than 1 tab.")
+		end
+		local active_tab = window:active_tab()
+
+		if #active_tab:panes() > 1 then
+			wezterm.log_error("Cannot restore panes, in tab with more than 1 pane.")
+		end
 	end
 
-	local window_state = load_json(state_path)
-	for _, tab_state in ipairs(window_state.tabs) do
-		local spawn_tab_args = { cwd = tab_state.pane_tree.cwd }
-		if opts.process_function then
-			spawn_tab_args.args = opts.process_function(tab_state.pane_tree.process)
+	local active_tab -- TODO: remove???
+	for i, tab_state in ipairs(window_state.tabs) do
+		local tab
+		if i == 1 and opts.tab then
+			tab = opts.tab
+		else
+			local spawn_tab_args = { cwd = tab_state.pane_tree.cwd }
+			tab, opts.pane, _ = window:spawn_tab(spawn_tab_args)
 		end
-		local tab, _, _ = mux_win:spawn_tab(spawn_tab_args)
+
+		if opts.process_function then
+			opts.pane:send_text(opts.process_function(tab_state.pane_tree.process))
+		end
 		restore_tab(tab, tab_state.pane_tree, opts)
 		if tab_state.is_active then
 			active_tab = tab
 		end
 	end
 
-	active_pane:activate()
-	window:perform_action(wezterm.action.CloseCurrentPane({ confirm = false }), active_pane)
 	active_tab:activate()
-	return window_state
+end
+
+---restore workspace state
+---@param workspace_state workspace_state
+---@param opts? restore_opts
+local function restore_workspace(workspace_state, opts)
+	if opts == nil then
+		opts = {}
+	end
+
+	for _, window_state in ipairs(workspace_state.window_states) do
+		local spawn_window_args = {
+			width = window_state.size.cols,
+			height = window_state.size.rows,
+			cwd = window_state.tabs[1].pane_tree.cwd,
+		}
+		local tab, pane, window = wezterm.mux.spawn_window(spawn_window_args)
+		opts.pane = pane
+		opts.tab = tab
+		restore_window(window, window_state, opts)
+	end
+end
+
+local function get_workspace_state()
+	local workspace_state = {
+		workspace = wezterm.mux.get_active_workspace(),
+		window_states = {},
+	}
+	for _, mux_win in ipairs(wezterm.mux.all_windows()) do
+		if mux_win:get_workspace() == workspace_state.workspace then
+			table.insert(workspace_state.window_states, get_window_state(mux_win))
+		end
+	end
+	return workspace_state
+end
+
+---Saves the current workspace state
+---@param file_name? string
+---@return string
+local function save_workspace_state(file_name)
+	local workspace_state = get_workspace_state()
+	local file_path
+	if file_name then
+		file_path = string.format("%snamed/%s.json", save_state_dir, file_name)
+	else
+		file_path = string.format("%sworkspace/%s.json", save_state_dir, workspace_state.workspace:gsub("/", "+"))
+	end
+	write_json(file_path, workspace_state)
+	return file_path
 end
 
 ---Saves the current window state
----@param window any
+---@param window MuxWindow
 ---@param file_name? string
 ---@return string
-local function save_state(window, file_name)
+local function save_window_state(window, file_name)
 	local window_state = get_window_state(window)
 	local file_path
 	if file_name then
@@ -198,7 +238,7 @@ local function save_state(window, file_name)
 	elseif window_state.workspace then
 		file_path = string.format("%sworkspace/%s.json", save_state_dir, window_state.workspace:gsub("/", "+"))
 	else
-		file_path = string.format("%scwd/%s.json", save_state_dir, window_state.tabs[1].cwd:gsub("/", "+"))
+		file_path = string.format("%scwd/%s.json", save_state_dir, window_state.tabs[1].pane_tree.cwd:gsub("/", "+"))
 	end
 	write_json(file_path, window_state)
 	return file_path
@@ -237,21 +277,47 @@ local function periodic_save(interval_seconds)
 		interval_seconds = 60 * 15
 	end
 	wezterm.time.call_after(interval_seconds, function()
+		local workspace = wezterm.mux.get_active_workspace()
 		for _, mux_win in ipairs(wezterm.mux.all_windows()) do
-			if mux_win:get_workspace() == wezterm.mux.get_active_workspace() then
-				save_state(mux_win:gui_window())
+			if mux_win:get_workspace() == workspace then
+				save_window_state(mux_win)
 			end
 		end
 	end)
 end
 
+local function fuzzy_load(window, pane, callback)
+	local state_files = {}
+	for i, file_path in ipairs(wezterm.glob("*/*", save_state_dir)) do
+		state_files[i] = { id = file_path, label = file_path }
+	end
+
+	window:perform_action(
+		wezterm.action.InputSelector({
+			action = wezterm.action_callback(function(inner_window, inner_pane, id, label)
+				if id and label then
+					callback(id, label, save_state_dir)
+				end
+			end),
+			title = "Choose State to Load",
+			choices = state_files,
+			fuzzy = true,
+		}),
+		pane
+	)
+end
+
 return {
 	init = init,
+	fuzzy_load = fuzzy_load,
 	periodic_save = periodic_save,
-	save_state = save_state,
+	save_workspace_state = save_workspace_state,
+	restore_workspace = restore_workspace,
+	save_state = save_window_state,
 	get_window_state = get_window_state,
 	restore_window = restore_window,
 	write_json = write_json,
 	change_state_save_dir = change_state_save_dir,
 	save_state_dir = save_state_dir,
+	load_json = load_json,
 }
