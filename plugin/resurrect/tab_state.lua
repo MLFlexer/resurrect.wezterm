@@ -1,0 +1,73 @@
+local pane_tree_mod = require("plugins.plugin.resurrect.pane_tree")
+local pub = {}
+
+---Function used to split panes when mapping over the pane_tree
+---@param opts restore_opts
+---@return fun(pane_tree): pane_tree
+local function make_splits(opts)
+	if opts == nil then
+		opts = {}
+	end
+	return function(pane_tree)
+		local pane = pane_tree.pane
+		local bottom = pane_tree.bottom
+		if bottom then
+			local split_args = { direction = "Bottom", cwd = bottom.cwd }
+			if opts.relative then
+				split_args.size = bottom.height / (pane_tree.height + bottom.height)
+			elseif opts.absolute then
+				split_args.size = bottom.height
+			end
+
+			bottom.pane = pane:split(split_args)
+			if opts.process_function then
+				bottom.pane:send_text(opts.process_function(bottom.process))
+			end
+		end
+
+		local right = pane_tree.right
+		if right then
+			local split_args = { direction = "Right", cwd = right.cwd }
+			if opts.relative then
+				split_args.size = right.width / (pane_tree.width + right.width)
+			elseif opts.absolute then
+				split_args.size = right.width
+			end
+
+			right.pane = pane:split(split_args)
+			if opts.process_function then
+				right.pane:send_text(opts.process_function(right.process))
+			end
+		end
+		return pane_tree
+	end
+end
+
+---creates and returns the state of the tab
+---@param tab MuxTab
+---@return tab_state
+function pub.get_tab_state(tab)
+	local panes = tab:panes_with_info()
+
+	local tab_state = {
+		title = tab:get_title(),
+		pane_tree = pane_tree_mod.create_pane_tree(panes),
+	}
+
+	return tab_state
+end
+
+---restore a tab
+---@param tab MuxTab
+---@param pane_tree pane_tree
+---@param opts restore_opts
+function pub.restore_tab(tab, pane_tree, opts)
+	if opts.pane then
+		pane_tree.pane = opts.pane
+	else
+		pane_tree.pane = tab:active_pane()
+	end
+	pane_tree_mod.map(pane_tree, make_splits(opts))
+end
+
+return pub

@@ -1,3 +1,5 @@
+local pub = {}
+
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}
 ---@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, cwd: string, process: string, pane: Pane?}
@@ -97,29 +99,33 @@ local function insert_panes(root, panes)
 	return root
 end
 
-local function create_pane_tree(panes)
+---Create a pane tree from a list of PaneInformation
+---@param panes PaneInformation
+---@return pane_tree | nil
+function pub.create_pane_tree(panes)
 	table.sort(panes, compare_pane_by_coord)
 	local root = table.remove(panes, 1)
 	return insert_panes(root, panes)
 end
 
-local function map(pane_tree, f)
+---maps over the pane tree
+---@param pane_tree pane_tree
+---@param f fun(pane_tree: pane_tree): pane_tree
+---@return nil
+function pub.map(pane_tree, f)
 	if pane_tree == nil then
 		return nil
 	end
 
 	pane_tree = f(pane_tree)
 	if pane_tree.right then
-		map(pane_tree.right, f)
+		pub.map(pane_tree.right, f)
 	end
 	if pane_tree.bottom then
-		map(pane_tree.bottom, f)
+		pub.map(pane_tree.bottom, f)
 	end
 
 	return pane_tree
 end
 
-return {
-	create_pane_tree = create_pane_tree,
-	map = map,
-}
+return pub
