@@ -2,7 +2,7 @@ local pub = {}
 
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}
----@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, cwd: string, process: string, pane: Pane?}
+---@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string[], cwd: string, process: string, pane: Pane?}
 
 ---compare function returns true if a is more left than b
 ---@param a PaneInformation
@@ -70,6 +70,7 @@ local function insert_panes(root, panes)
 
 	root.cwd = root.pane:get_current_working_dir().file_path
 	root.process = root.pane:get_foreground_process_name()
+	root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
 	root.pane = nil
 
 	if #panes == 0 then

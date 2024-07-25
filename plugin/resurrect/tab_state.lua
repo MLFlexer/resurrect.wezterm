@@ -10,6 +10,15 @@ local function make_splits(opts)
 	end
 	return function(pane_tree)
 		local pane = pane_tree.pane
+
+		if opts.restore_text and pane_tree.text then
+			pane:inject_output(pane_tree.text)
+		end
+
+		if opts.process_function and pane_tree.process then
+			pane:send_text(opts.process_function(pane_tree.process))
+		end
+
 		local bottom = pane_tree.bottom
 		if bottom then
 			local split_args = { direction = "Bottom", cwd = bottom.cwd }
@@ -20,9 +29,6 @@ local function make_splits(opts)
 			end
 
 			bottom.pane = pane:split(split_args)
-			if opts.process_function then
-				bottom.pane:send_text(opts.process_function(bottom.process))
-			end
 		end
 
 		local right = pane_tree.right
@@ -35,9 +41,6 @@ local function make_splits(opts)
 			end
 
 			right.pane = pane:split(split_args)
-			if opts.process_function then
-				right.pane:send_text(opts.process_function(right.process))
-			end
 		end
 		return pane_tree
 	end

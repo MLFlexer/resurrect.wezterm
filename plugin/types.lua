@@ -5,4 +5,4 @@
 ---@alias MuxTab any
 ---@alias MuxWindow any
 
----@alias restore_opts {relative: boolean?, absolute: boolean?, pane: Pane?, tab: MuxTab?, window: MuxWindow, process_function: fun(args: string): string[]?}
+---@alias restore_opts {relative: boolean?, absolute: boolean?, pane: Pane?, tab: MuxTab?, window: MuxWindow, restore_text: boolean, process_function: fun(args: string): string[]?}
