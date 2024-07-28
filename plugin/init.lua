@@ -7,6 +7,12 @@ function pub.enable_defaults()
 	package.path = package.path .. ";" .. plugin.plugin_dir .. "/?.lua"
 end
 
+--- Returns the name of the package, used when requiring modules
+--- @return string
+function pub.get_wezterm_package_name()
+	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs"
+end
+
 pub.save_state_dir = wezterm.home_dir .. "/.local/share/wezterm/resurrect/"
 
 ---Changes the directory to save the state to
