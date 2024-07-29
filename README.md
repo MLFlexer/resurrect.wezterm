@@ -1,6 +1,8 @@
 # resurrect.wezterm
 Resurrect your terminal environment!⚰️ A plugin to save the state of your windows, tabs and panes. Inspired by [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) and [tmux-continuum](https://github.com/tmux-plugins/tmux-continuum).
 
+![Screencastfrom2024-07-2918-50-57-ezgif com-resize](https://github.com/user-attachments/assets/640aefea-793c-486d-9579-1a9c8bb4c1fa)
+
 ## Features
 * Restore your windows, tabs and panes with the layout and text from a saved state.
 * Restore shell output from a saved session.
