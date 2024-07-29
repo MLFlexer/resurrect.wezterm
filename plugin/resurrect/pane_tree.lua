@@ -2,7 +2,7 @@ local pub = {}
 
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}
----@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string[], cwd: string, process: string, pane: Pane?}
+---@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string[], cwd: string, process: string, pane: Pane?, is_active: boolean, is_zoomed: boolean}
 
 ---compare function returns true if a is more left than b
 ---@param a PaneInformation
@@ -151,6 +151,22 @@ function pub.map(pane_tree, f)
 	end
 
 	return pane_tree
+end
+
+function pub.fold(pane_tree, acc, f)
+	if pane_tree == nil then
+		return acc
+	end
+
+	acc = f(acc, pane_tree)
+	if pane_tree.right then
+		acc = pub.fold(pane_tree.right, acc, f)
+	end
+	if pane_tree.bottom then
+		acc = pub.fold(pane_tree.bottom, acc, f)
+	end
+
+	return acc
 end
 
 return pub
