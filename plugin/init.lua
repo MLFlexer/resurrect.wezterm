@@ -99,12 +99,13 @@ end
 
 ---Saves the stater after interval in seconds
 ---@param interval_seconds integer
-function pub.periodic_save(interval_seconds, get_state_function)
+function pub.periodic_save(interval_seconds)
 	if interval_seconds == nil then
 		interval_seconds = 60 * 15
 	end
 	wezterm.time.call_after(interval_seconds, function()
-		pub.save_state(get_state_function())
+		local workspace_state = require(pub.get_wezterm_package_name() .. ".plugin.workspace_state")
+		pub.save_state(workspace_state.get_workspace_state())
 	end)
 end
 
