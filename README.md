@@ -146,8 +146,22 @@ State files are json files, which will be decoded into lua tables. This can be u
 }
 ```
 
+
 ## Contributions
 Suggestions, Issues and PRs are welcome! The features currently implemented are the ones I use the most, but your workflow might differ. As such, if you have any proposals on how to improve the plugin please feel free to make an issue or even better a PR!
 
 ### Technical details
 Restoring of the panes are done via. the `pane_tree` file, which has functions to work on a binary-like-tree of the panes. Each node in the pane_tree represents a possible split pane. If the pane has a `bottom` and/or `right` child, then the pane is split. If you have any questions to the implementation, then I suggest you read the code or open an issue and I will try to clarify. Improvements to this section is also very much welcome.
+
+
+## Disclaimer
+As the software currently saves the state to plaintext json files then you have to be aware of the security risks of saving potential secure shell output to plaintext files. The plan is to add encryption to the files, however this has not been implemented yet.
+
+### Security Warning
+
+This software is provided "as is" and may contain security vulnerabilities. Users are responsible for ensuring the security of their own systems and data. It is strongly recommended to thoroughly test this software in a controlled environment before deploying it in a production setting. Regular updates and security reviews are essential for maintaining the security of your system.
+
+### Limitation of Liability
+
+The authors and contributors of this software shall not be held liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) arising in any way out of the use of this software, even if advised of the possibility of such damage.
+
