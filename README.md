@@ -5,6 +5,7 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 * Restore your windows, tabs and panes with the layout and text from a saved state.
 * Restore shell output from a saved session.
 * Save the state of your current window, with every window, tab and pane state stored in a `json` file.
+* Restore the save from a `json` file.
 
 ## Setup example
 1. require the plugin:
@@ -103,6 +104,46 @@ This is used to format labels, ignore saved state, change the title and change t
 ### Change the directory to store the saved state
 ```lua
 resurrect.change_state_save_dir("/some/other/directory")
+```
+
+## State files
+State files are json files, which will be decoded into lua tables. This can be used to create your own layout files which can then be loaded. Here is an example of a json file:
+```json
+{
+   "window_states":[
+      {
+         "size":{
+            "cols":191,
+            "dpi":96,
+            "pixel_height":1000,
+            "pixel_width":1910,
+            "rows":50
+         },
+         "tabs":[
+            {
+               "is_active":true,
+               "pane_tree":{
+                  "cwd":"/home/user/",
+                  "height":50,
+                  "index":0,
+                  "is_active":true,
+                  "is_zoomed":false,
+                  "left":0,
+                  "pixel_height":1000,
+                  "pixel_width":1910,
+                  "process":"/bin/bash",
+                  "text":"Some text",
+                  "top":0,
+                  "width":191
+               },
+               "title":"tab_title"
+            }
+         ],
+         "title":"window_title"
+      }
+   ],
+   "workspace":"workspace_name"
+}
 ```
 
 ## Contributions
