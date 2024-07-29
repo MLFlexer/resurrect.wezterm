@@ -14,6 +14,7 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 ```lua
 local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+resurrect.init_directories() -- you can delete this line once the directories have been created
 ```
 
 2. Saving workspace state:

@@ -15,7 +15,8 @@ function pub.get_require_path()
 	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs"
 end
 
-pub.save_state_dir = wezterm.home_dir .. "/.local/share/wezterm/resurrect/"
+pub.save_state_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
+	.. "/httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs/state/"
 
 ---Changes the directory to save the state to
 ---@param directory string
@@ -82,21 +83,40 @@ function pub.init_directories(state_dir)
 	end
 
 	-- initialize directories
-	wezterm.background_child_process({
-		"mkdir",
-		"-p",
-		pub.save_state_dir .. "named",
-	})
-	wezterm.background_child_process({
-		"mkdir",
-		"-p",
-		pub.save_state_dir .. "workspace",
-	})
-	wezterm.background_child_process({
-		"mkdir",
-		"-p",
-		pub.save_state_dir .. "cwd",
-	})
+	if wezterm.target_triple == "x86_64-pc-windows-msvc" then
+		if state_dir == nil then
+			pub.save_state_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
+				.. "\\httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs\\state\\"
+		end
+		wezterm.background_child_process({
+			"mkdir",
+			pub.save_state_dir .. "named",
+		})
+		wezterm.background_child_process({
+			"mkdir",
+			pub.save_state_dir .. "workspace",
+		})
+		wezterm.background_child_process({
+			"mkdir",
+			pub.save_state_dir .. "cwd",
+		})
+	else
+		wezterm.background_child_process({
+			"mkdir",
+			"-p",
+			pub.save_state_dir .. "named",
+		})
+		wezterm.background_child_process({
+			"mkdir",
+			"-p",
+			pub.save_state_dir .. "workspace",
+		})
+		wezterm.background_child_process({
+			"mkdir",
+			"-p",
+			pub.save_state_dir .. "cwd",
+		})
+	end
 end
 
 ---Saves the stater after interval in seconds
