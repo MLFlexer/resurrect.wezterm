@@ -13,7 +13,8 @@ function pub.restore_workspace(workspace_state, opts)
 
 	for i, window_state in ipairs(workspace_state.window_states) do
 		if i == 1 and opts.window then
-			opts.window:set_inner_size(window_state.size.cols, window_state.size.rows)
+			-- inner size is in pixels
+			opts.window:gui_window():set_inner_size(window_state.size.pixel_width, window_state.size.pixel_height)
 			opts.tab = opts.window:active_tab()
 			opts.pane = opts.window:active_pane()
 		else
