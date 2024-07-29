@@ -1,4 +1,6 @@
-local tab_state_mod = require("plugins.plugin.resurrect.tab_state")
+local wezterm = require("wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
+local tab_state_mod = require(resurrect.get_wezterm_package_name() .. ".plugin.resurrect.tab_state")
 local pub = {}
 
 ---Returns the state of the window

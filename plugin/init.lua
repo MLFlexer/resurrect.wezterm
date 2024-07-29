@@ -1,14 +1,16 @@
 local wezterm = require("wezterm")
 local pub = {}
 
--- TODO: enable by default
-local function enable_defaults(url)
-	for _, plugin in ipairs(wezterm.plugin.list()) do
-		if plugin.url == url then
-			package.path = package.path .. ";" .. plugin.plugin_dir .. "/?.lua"
-			break
-		end
-	end
+--- adds the wezterm plugin directory to the lua path
+function pub.enable_defaults()
+	local plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
+	package.path = package.path .. ";" .. plugin_dir .. "/?.lua"
+end
+
+--- Returns the name of the package, used when requiring modules
+--- @return string
+function pub.get_wezterm_package_name()
+	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs"
 end
 
 pub.save_state_dir = wezterm.home_dir .. "/.local/share/wezterm/resurrect/"
