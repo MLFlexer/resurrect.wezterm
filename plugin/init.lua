@@ -2,14 +2,16 @@ local wezterm = require("wezterm")
 local pub = {}
 
 --- adds the wezterm plugin directory to the lua path
-function pub.enable_defaults()
+local function enable_sub_modules()
 	local plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
 	package.path = package.path .. ";" .. plugin_dir .. "/?.lua"
 end
 
+enable_sub_modules()
+
 --- Returns the name of the package, used when requiring modules
 --- @return string
-function pub.get_wezterm_package_name()
+function pub.get_require_path()
 	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs"
 end
 

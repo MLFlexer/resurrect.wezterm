@@ -1,6 +1,6 @@
 local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
-local window_state_mod = require(resurrect.get_wezterm_package_name() .. ".plugin.resurrect.window_state")
+local window_state_mod = require(resurrect.get_require_path() .. ".plugin.resurrect.window_state")
 local pub = {}
 
 ---restore workspace state
