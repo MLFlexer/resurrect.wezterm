@@ -10,15 +10,12 @@ local function make_splits(opts)
 	if opts == nil then
 		opts = {}
 	end
+
 	return function(pane_tree)
 		local pane = pane_tree.pane
 
-		if opts.restore_text and pane_tree.text then
-			pane:inject_output(pane_tree.text)
-		end
-
-		if opts.process_function and pane_tree.process then
-			pane:send_text(opts.process_function(pane_tree.process))
+		if opts.on_pane_restore then
+			opts.on_pane_restore(pane_tree)
 		end
 
 		local bottom = pane_tree.bottom
@@ -73,6 +70,16 @@ function pub.restore_tab(tab, pane_tree, opts)
 		pane_tree.pane = tab:active_pane()
 	end
 	pane_tree_mod.map(pane_tree, make_splits(opts))
+end
+
+function pub.default_on_pane_restore(pane_tree)
+	local pane = pane_tree.pane
+
+	if pane_tree_mod.get_shell_process(pane_tree.process) then
+		pane:inject_output(pane_tree.text)
+	else
+		pane:send_text(pane_tree.process .. "\r\n")
+	end
 end
 
 return pub

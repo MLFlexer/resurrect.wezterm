@@ -60,6 +60,26 @@ local function pop_connected_right(root, panes)
 	end
 end
 
+---returns the process if it is a shell, otherwise returns nil
+---@param process string
+---@return string?
+function pub.get_shell_process(process)
+	process = process:match("^.*[/\\]?(.+)$")
+	if process == "bash" then
+		return process
+	elseif process == "zsh" then
+		return process
+	elseif process == "fish" then
+		return process
+	elseif process == "sh" then
+		return process
+	elseif process == "powershell" then
+		return process
+	else
+		return nil
+	end
+end
+
 ---@param root pane_tree | nil
 ---@param panes PaneInformation[]
 ---@return pane_tree | nil
@@ -70,7 +90,11 @@ local function insert_panes(root, panes)
 
 	root.cwd = root.pane:get_current_working_dir().file_path
 	root.process = root.pane:get_foreground_process_name()
-	root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
+	if pub.get_shell_process(root.process) then
+		root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
+	else
+		root.text = {}
+	end
 	root.pane = nil
 
 	if #panes == 0 then
