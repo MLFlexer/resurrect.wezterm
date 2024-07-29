@@ -18,19 +18,19 @@ local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.
 
 2. Saving workspace state:
 ```lua
-	local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
+local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
 config.keys = {
   -- ...
-	{
-		key = "s",
-		mods = "ALT",
-		action = wezterm.action.Multiple({
-			wezterm.action_callback(function(win, pane)
-        local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
-        resurrect.save_state(workspace_state.get_workspace_state())
-			end),
-		}),
-	},
+  {
+  key = "s",
+  mods = "ALT",
+  action = wezterm.action.Multiple({
+    wezterm.action_callback(function(win, pane)
+      local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
+      resurrect.save_state(workspace_state.get_workspace_state())
+    end),
+    }),
+  },
 }
 ```
 
@@ -41,26 +41,26 @@ local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurre
 
 config.keys = {
   -- ...
-	{
-		key = "l",
-		mods = "ALT",
-		action = wezterm.action.Multiple({
-			wezterm.action_callback(function(win, pane)
-				local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
-				resurrect.fuzzy_load(win, pane, function(id, label)
-					id = string.match(id, "([^/]+)$")
-					id = string.match(id, "(.+)%..+$")
-					local state = resurrect.load_state(id, "workspace")
-					local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
-					workspace_state.restore_workspace(state, {
-						relative = true,
-						restore_text = true,
-						on_pane_restore = (require(resurrect.get_require_path() .. ".plugin.resurrect.tab_state")).default_on_pane_restore,
-					})
-				end)
-			end),
-		}),
-	},
+  {
+    key = "l",
+    mods = "ALT",
+    action = wezterm.action.Multiple({
+      wezterm.action_callback(function(win, pane)
+	local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
+	resurrect.fuzzy_load(win, pane, function(id, label)
+	  id = string.match(id, "([^/]+)$")
+	  id = string.match(id, "(.+)%..+$")
+	  local state = resurrect.load_state(id, "workspace")
+	  local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
+	  workspace_state.restore_workspace(state, {
+	    relative = true,
+	    restore_text = true,
+	    on_pane_restore = (require(resurrect.get_require_path() .. ".plugin.resurrect.tab_state")).default_on_pane_restore,
+	  })
+	end)
+      end),
+    }),
+  },
 }
 ```
 
@@ -73,20 +73,20 @@ I have added the following to my configuration to be able to do this whenever I 
 ```lua
 -- loads the state whenever I create a new workspace
 wezterm.on("smart_workspace_switcher.workspace_switcher.created", function(window, path, label)
-	local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
+  local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
 
-	workspace_state.restore_workspace(resurrect.load_state(label, "workspace"), {
-		window = window,
-		relative = true,
-		restore_text = true,
-		on_pane_restore = (require(resurrect.get_require_path() .. ".plugin.resurrect.tab_state")).default_on_pane_restore,
-	})
+  workspace_state.restore_workspace(resurrect.load_state(label, "workspace"), {
+    window = window,
+    relative = true,
+    restore_text = true,
+    on_pane_restore = (require(resurrect.get_require_path() .. ".plugin.resurrect.tab_state")).default_on_pane_restore,
+  })
 end)
 
 -- Saves the state whenever I select a workspace
 wezterm.on("smart_workspace_switcher.workspace_switcher.selected", function(window, path, label)
-	local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
-	resurrect.save_state(workspace_state.get_workspace_state())
+  local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
+  resurrect.save_state(workspace_state.get_workspace_state())
 end)
 ```
 You can checkout my configuration [here](https://github.com/MLFlexer/.dotfiles/tree/main/home-manager/config/wezterm).
