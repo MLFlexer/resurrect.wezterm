@@ -104,8 +104,9 @@ function pub.periodic_save(interval_seconds)
 		interval_seconds = 60 * 15
 	end
 	wezterm.time.call_after(interval_seconds, function()
-		local workspace_state = require(pub.get_wezterm_package_name() .. ".plugin.workspace_state")
+		local workspace_state = require(pub.get_wezterm_package_name() .. ".plugin.resurrect.workspace_state")
 		pub.save_state(workspace_state.get_workspace_state())
+		pub.periodic_save(interval_seconds)
 	end)
 end
 
