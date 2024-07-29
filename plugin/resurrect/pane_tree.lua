@@ -64,7 +64,7 @@ end
 ---@param process string
 ---@return string?
 function pub.get_shell_process(process)
-	process = process:match("^.*[/\\]?(.+)$")
+	process = process:match("^.*[/\\](.+)$")
 	if process == "bash" then
 		return process
 	elseif process == "zsh" then
