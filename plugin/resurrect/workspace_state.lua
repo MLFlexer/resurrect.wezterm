@@ -11,17 +11,20 @@ function pub.restore_workspace(workspace_state, opts)
 		opts = {}
 	end
 
+	local cur_window = opts.window
 	for i, window_state in ipairs(workspace_state.window_states) do
-		if i == 1 and opts.window then
-			opts.tab = opts.window:active_tab()
-			opts.pane = opts.window:active_pane()
-		else
-			local spawn_window_args = {
-				width = window_state.size.cols,
-				height = window_state.size.rows,
-				cwd = window_state.tabs[1].pane_tree.cwd,
-			}
-			opts.tab, opts.pane, opts.window = wezterm.mux.spawn_window(spawn_window_args)
+		local spawn_window_args = {
+			width = window_state.size.cols,
+			height = window_state.size.rows,
+			cwd = window_state.tabs[1].pane_tree.cwd,
+		}
+		opts.tab, opts.pane, opts.window = wezterm.mux.spawn_window(spawn_window_args)
+
+		-- close the window if open
+		if i == 1 and cur_window then
+			cur_window
+				:gui_window()
+				:perform_action(wezterm.action.CloseCurrentTab({ confirm = true }), cur_window:active_pane())
 		end
 		window_state_mod.restore_window(opts.window, window_state, opts)
 	end
