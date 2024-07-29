@@ -5,13 +5,13 @@ local pub = {}
 
 ---Function used to split panes when mapping over the pane_tree
 ---@param opts restore_opts
----@return fun(pane_tree): pane_tree
+---@return fun(acc: {active_pane: Pane, is_zoomed: boolean}, pane_tree: pane_tree): {active_pane: Pane, is_zoomed: boolean}
 local function make_splits(opts)
 	if opts == nil then
 		opts = {}
 	end
 
-	return function(pane_tree)
+	return function(acc, pane_tree)
 		local pane = pane_tree.pane
 
 		if opts.on_pane_restore then
@@ -41,7 +41,18 @@ local function make_splits(opts)
 
 			right.pane = pane:split(split_args)
 		end
-		return pane_tree
+
+		if pane_tree.is_active then
+			wezterm.log_warn("THIS MOTHERFUCKER")
+			wezterm.log_warn(pane_tree.pane)
+			acc.active_pane = pane_tree.pane
+		end
+
+		if pane_tree.is_zoomed then
+			acc.is_zoomed = true
+		end
+
+		return acc
 	end
 end
 
@@ -51,8 +62,20 @@ end
 function pub.get_tab_state(tab)
 	local panes = tab:panes_with_info()
 
+	local function is_zoomed()
+		for _, pane in ipairs(panes) do
+			wezterm.log_error(pane)
+
+			if pane.is_zoomed then
+				return true
+			end
+		end
+		return false
+	end
+
 	local tab_state = {
 		title = tab:get_title(),
+		is_zoomed = is_zoomed(),
 		pane_tree = pane_tree_mod.create_pane_tree(panes),
 	}
 
@@ -69,7 +92,9 @@ function pub.restore_tab(tab, pane_tree, opts)
 	else
 		pane_tree.pane = tab:active_pane()
 	end
-	pane_tree_mod.map(pane_tree, make_splits(opts))
+
+	local acc = pane_tree_mod.fold(pane_tree, { is_zoomed = false }, make_splits(opts))
+	acc.active_pane:activate()
 end
 
 function pub.default_on_pane_restore(pane_tree)
