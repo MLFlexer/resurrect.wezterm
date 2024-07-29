@@ -3,8 +3,8 @@ local pub = {}
 
 --- adds the wezterm plugin directory to the lua path
 function pub.enable_defaults()
-	local plugin = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
-	package.path = package.path .. ";" .. plugin.plugin_dir .. "/?.lua"
+	local plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
+	package.path = package.path .. ";" .. plugin_dir .. "/?.lua"
 end
 
 --- Returns the name of the package, used when requiring modules
