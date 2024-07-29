@@ -44,12 +44,13 @@ function pub.restore_window(window, window_state, opts)
 			tab, opts.pane, _ = window:spawn_tab(spawn_tab_args)
 		end
 
-		if opts.process_function then
-			opts.pane:send_text(opts.process_function(tab_state.pane_tree.process))
-		end
 		tab_state_mod.restore_tab(tab, tab_state.pane_tree, opts)
 		if tab_state.is_active then
 			active_tab = tab
+		end
+
+		if tab_state.is_zoomed then
+			tab:set_zoomed(true)
 		end
 	end
 
