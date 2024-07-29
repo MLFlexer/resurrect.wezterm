@@ -76,7 +76,7 @@ end
 ---initialize by creating the directories, can be avoided if they are already
 ---present on the system
 ---@param state_dir string
-function pub.init(state_dir)
+function pub.init_directories(state_dir)
 	if state_dir then
 		pub.save_state_dir = state_dir
 	end
@@ -112,6 +112,11 @@ function pub.periodic_save(interval_seconds)
 	end)
 end
 
+---@alias fmt_fun fun(label: string): string
+---@alias fuzzy_load_opts {title: string, is_fuzzy: boolean, ignore_workspaces: boolean, ignore_tabs: boolean, ignore_windows: boolean, fmt_window: fmt_fun, fmt_workspace: fmt_fun, fmt_tab: fmt_fun }
+
+---Returns default fuzzy loading options
+---@return fuzzy_load_opts
 function pub.get_default_fuzzy_load_opts()
 	return {
 		title = "Choose State to Load",
@@ -140,6 +145,11 @@ function pub.get_default_fuzzy_load_opts()
 	}
 end
 
+---A fuzzy finder to restore saved state
+---@param window MuxWindow
+---@param pane Pane
+---@param callback fun(id: string, label: string, save_state_dir: string)
+---@param opts fuzzy_load_opts?
 function pub.fuzzy_load(window, pane, callback, opts)
 	local state_files = {}
 
@@ -169,8 +179,8 @@ function pub.fuzzy_load(window, pane, callback, opts)
 
 	if not opts.ignore_tabs then
 		for i, file_path in ipairs(wezterm.glob("*", pub.save_state_dir .. "/tab")) do
-			if opts.fmt_tabs then
-				state_files[i] = { id = file_path, label = opts.fmt_tabs(file_path) }
+			if opts.fmt_tab then
+				state_files[i] = { id = file_path, label = opts.fmt_tab(file_path) }
 			else
 				state_files[i] = { id = file_path, label = file_path }
 			end
