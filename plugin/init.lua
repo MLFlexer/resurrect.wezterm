@@ -1,10 +1,17 @@
 local wezterm = require("wezterm")
 local pub = {}
 
+local plugin_dir
+
 --- adds the wezterm plugin directory to the lua path
 local function enable_sub_modules()
-	local plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
-	package.path = package.path .. ";" .. plugin_dir .. "/?.lua"
+	if wezterm.target_triple == "x86_64-pc-windows-msvc" then
+		plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("\\[^\\]*$", "")
+		package.path = package.path .. ";" .. plugin_dir .. "\\?.lua"
+	else
+		plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
+		package.path = package.path .. ";" .. plugin_dir .. "/?.lua"
+	end
 end
 
 enable_sub_modules()
@@ -15,8 +22,12 @@ function pub.get_require_path()
 	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs"
 end
 
-pub.save_state_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
+pub.save_state_dir = plugin_dir
 	.. "/httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs/state/"
+if wezterm.target_triple == "x86_64-pc-windows-msvc" then
+	pub.save_state_dir = plugin_dir
+		.. "\\httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs\\state\\"
+end
 
 ---Changes the directory to save the state to
 ---@param directory string
