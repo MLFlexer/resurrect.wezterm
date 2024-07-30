@@ -149,6 +149,33 @@ State files are json files, which will be decoded into lua tables. This can be u
 }
 ```
 
+## Augmenting the command palette
+
+If you would like to add entries in your Wezterm command palette for renaming and switching workspaces:
+```lua
+wezterm.on('augment-command-palette', function(window, pane)
+  return {
+    {
+      brief = 'Window | Workspace: Switch Workspace',
+      icon = 'md_briefcase_arrow_up_down',
+      action = workspace_switcher.switch_workspace(),
+    },
+    {
+      brief = 'Window | Workspace: Rename Workspace',
+      icon = 'md_briefcase_edit',
+      action = wezterm.action.PromptInputLine {
+        description = 'Enter new name for workspace',
+        action = wezterm.action_callback(function(window, pane, line)
+          if line then
+            wezterm.mux.rename_workspace(wezterm.mux.get_active_workspace(), line)
+            resurrect.save_state(workspace_state.get_workspace_state())
+          end
+        end),
+      },
+    },
+  }
+end)
+```
 
 ## Contributions
 Suggestions, Issues and PRs are welcome! The features currently implemented are the ones I use the most, but your workflow might differ. As such, if you have any proposals on how to improve the plugin please feel free to make an issue or even better a PR!
