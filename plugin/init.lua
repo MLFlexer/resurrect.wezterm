@@ -22,11 +22,9 @@ function pub.get_require_path()
 	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs"
 end
 
-pub.save_state_dir = plugin_dir
-	.. "/httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs/state/"
+pub.save_state_dir = plugin_dir .. "/httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs/state/"
 if wezterm.target_triple == "x86_64-pc-windows-msvc" then
-	pub.save_state_dir = plugin_dir
-		.. "\\httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs\\state\\"
+	pub.save_state_dir = plugin_dir .. "\\httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs\\state\\"
 end
 
 ---Changes the directory to save the state to
@@ -43,7 +41,11 @@ local function get_file_path(file_name, type, opt_name)
 	if opt_name then
 		file_name = opt_name
 	end
-	return string.format("%s%s/%s.json", pub.save_state_dir, type, file_name:gsub("/", "+"))
+	if wezterm.target_triple == "x86_64-pc-windows-msvc" then
+		return string.format("%s%s\\%s.json", pub.save_state_dir, type, file_name:gsub("\\", "+"))
+	else
+		return string.format("%s%s/%s.json", pub.save_state_dir, type, file_name:gsub("/", "+"))
+	end
 end
 
 ---@param file_path string
@@ -92,7 +94,7 @@ function pub.periodic_save(interval_seconds)
 		interval_seconds = 60 * 15
 	end
 	wezterm.time.call_after(interval_seconds, function()
-		local workspace_state = require(pub.get_wezterm_package_name() .. ".plugin.resurrect.workspace_state")
+		local workspace_state = require(pub.get_require_path() .. ".plugin.resurrect.workspace_state")
 		pub.save_state(workspace_state.get_workspace_state())
 		pub.periodic_save(interval_seconds)
 	end)
