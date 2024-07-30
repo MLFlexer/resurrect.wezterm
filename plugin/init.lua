@@ -1,10 +1,17 @@
 local wezterm = require("wezterm")
 local pub = {}
 
+local plugin_dir
+
 --- adds the wezterm plugin directory to the lua path
 local function enable_sub_modules()
-	local plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
-	package.path = package.path .. ";" .. plugin_dir .. "/?.lua"
+	if wezterm.target_triple == "x86_64-pc-windows-msvc" then
+		plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("\\[^\\]*$", "")
+		package.path = package.path .. ";" .. plugin_dir .. "\\?.lua"
+	else
+		plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
+		package.path = package.path .. ";" .. plugin_dir .. "/?.lua"
+	end
 end
 
 enable_sub_modules()
@@ -15,8 +22,10 @@ function pub.get_require_path()
 	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs"
 end
 
-pub.save_state_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
-	.. "/httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs/state/"
+pub.save_state_dir = plugin_dir .. "/httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs/state/"
+if wezterm.target_triple == "x86_64-pc-windows-msvc" then
+	pub.save_state_dir = plugin_dir .. "\\httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs\\state\\"
+end
 
 ---Changes the directory to save the state to
 ---@param directory string
@@ -32,7 +41,11 @@ local function get_file_path(file_name, type, opt_name)
 	if opt_name then
 		file_name = opt_name
 	end
-	return string.format("%s%s/%s.json", pub.save_state_dir, type, file_name:gsub("/", "+"))
+	if wezterm.target_triple == "x86_64-pc-windows-msvc" then
+		return string.format("%s%s\\%s.json", pub.save_state_dir, type, file_name:gsub("\\", "+"))
+	else
+		return string.format("%s%s/%s.json", pub.save_state_dir, type, file_name:gsub("/", "+"))
+	end
 end
 
 ---@param file_path string
@@ -74,51 +87,6 @@ function pub.load_state(name, type)
 	return load_json(get_file_path(name, type))
 end
 
----initialize by creating the directories, can be avoided if they are already
----present on the system
----@param state_dir string
-function pub.init_directories(state_dir)
-	if state_dir then
-		pub.save_state_dir = state_dir
-	end
-
-	-- initialize directories
-	if wezterm.target_triple == "x86_64-pc-windows-msvc" then
-		if state_dir == nil then
-			pub.save_state_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
-				.. "\\httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs\\state\\"
-		end
-		wezterm.background_child_process({
-			"mkdir",
-			pub.save_state_dir .. "named",
-		})
-		wezterm.background_child_process({
-			"mkdir",
-			pub.save_state_dir .. "workspace",
-		})
-		wezterm.background_child_process({
-			"mkdir",
-			pub.save_state_dir .. "cwd",
-		})
-	else
-		wezterm.background_child_process({
-			"mkdir",
-			"-p",
-			pub.save_state_dir .. "named",
-		})
-		wezterm.background_child_process({
-			"mkdir",
-			"-p",
-			pub.save_state_dir .. "workspace",
-		})
-		wezterm.background_child_process({
-			"mkdir",
-			"-p",
-			pub.save_state_dir .. "cwd",
-		})
-	end
-end
-
 ---Saves the stater after interval in seconds
 ---@param interval_seconds integer
 function pub.periodic_save(interval_seconds)
@@ -126,7 +94,7 @@ function pub.periodic_save(interval_seconds)
 		interval_seconds = 60 * 15
 	end
 	wezterm.time.call_after(interval_seconds, function()
-		local workspace_state = require(pub.get_wezterm_package_name() .. ".plugin.resurrect.workspace_state")
+		local workspace_state = require(pub.get_require_path() .. ".plugin.resurrect.workspace_state")
 		pub.save_state(workspace_state.get_workspace_state())
 		pub.periodic_save(interval_seconds)
 	end)

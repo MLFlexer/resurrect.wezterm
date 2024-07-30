@@ -43,8 +43,6 @@ local function make_splits(opts)
 		end
 
 		if pane_tree.is_active then
-			wezterm.log_warn("THIS MOTHERFUCKER")
-			wezterm.log_warn(pane_tree.pane)
 			acc.active_pane = pane_tree.pane
 		end
 
@@ -64,8 +62,6 @@ function pub.get_tab_state(tab)
 
 	local function is_zoomed()
 		for _, pane in ipairs(panes) do
-			wezterm.log_error(pane)
-
 			if pane.is_zoomed then
 				return true
 			end
