@@ -19,12 +19,12 @@ enable_sub_modules()
 --- Returns the name of the package, used when requiring modules
 --- @return string
 function pub.get_require_path()
-	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs"
+	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDswezterm"
 end
 
-pub.save_state_dir = plugin_dir .. "/httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs/state/"
+pub.save_state_dir = plugin_dir .. "/httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDswezterm/state/"
 if wezterm.target_triple == "x86_64-pc-windows-msvc" then
-	pub.save_state_dir = plugin_dir .. "\\httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs\\state\\"
+	pub.save_state_dir = plugin_dir .. "\\httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDswezterm\\state\\"
 end
 
 ---Changes the directory to save the state to
