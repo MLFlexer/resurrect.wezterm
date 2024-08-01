@@ -41,8 +41,7 @@ end
 
 enable_sub_modules()
 
-pub.save_state_dir = is_windows() and plugin_dir .. separator .. pub.get_require_path() .. "\\state\\"
-	or plugin_dir .. separator .. pub.get_require_path() .. "/state/"
+pub.save_state_dir = plugin_dir .. separator .. pub.get_require_path() .. separator .. "state" .. separator
 
 ---Changes the directory to save the state to
 ---@param directory string
