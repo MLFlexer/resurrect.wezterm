@@ -24,7 +24,9 @@ resurrect.save_state_dir = "C:\\Users\\Admin\\Desktop\\state\\" -- Set some dire
 
 2. Saving workspace state:
 ```lua
-local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+local workspace_state = resurrect.workspace_state
+
 config.keys = {
   -- ...
   {
@@ -32,7 +34,6 @@ config.keys = {
   mods = "ALT",
   action = wezterm.action.Multiple({
     wezterm.action_callback(function(win, pane)
-      local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
       resurrect.save_state(workspace_state.get_workspace_state())
     end),
     }),
@@ -43,7 +44,7 @@ config.keys = {
 3. Loading workspace state via. fuzzy finder:
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
-local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
+local workspace_state = resurrect.workspace_state
 
 config.keys = {
   -- ...
@@ -57,11 +58,10 @@ config.keys = {
 	  id = string.match(id, "([^/]+)$")
 	  id = string.match(id, "(.+)%..+$")
 	  local state = resurrect.load_state(id, "workspace")
-	  local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
 	  workspace_state.restore_workspace(state, {
 	    relative = true,
 	    restore_text = true,
-	    on_pane_restore = (require(resurrect.get_require_path() .. ".plugin.resurrect.tab_state")).default_on_pane_restore,
+            on_pane_restore = resurrect.tab_state.default_on_pane_restore,
 	  })
 	end)
       end),
@@ -79,19 +79,19 @@ I have added the following to my configuration to be able to do this whenever I 
 ```lua
 -- loads the state whenever I create a new workspace
 wezterm.on("smart_workspace_switcher.workspace_switcher.created", function(window, path, label)
-  local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
+  local workspace_state = resurrect.workspace_state
 
   workspace_state.restore_workspace(resurrect.load_state(label, "workspace"), {
     window = window,
     relative = true,
     restore_text = true,
-    on_pane_restore = (require(resurrect.get_require_path() .. ".plugin.resurrect.tab_state")).default_on_pane_restore,
+    on_pane_restore = resurrect.tab_state.default_on_pane_restore,
   })
 end)
 
 -- Saves the state whenever I select a workspace
 wezterm.on("smart_workspace_switcher.workspace_switcher.selected", function(window, path, label)
-  local workspace_state = require(resurrect.get_require_path() .. ".plugin.resurrect.workspace_state")
+  local workspace_state = resurrect.workspace_state
   resurrect.save_state(workspace_state.get_workspace_state())
 end)
 ```
@@ -159,6 +159,7 @@ State files are json files, which will be decoded into lua tables. This can be u
 If you would like to add entries in your Wezterm command palette for renaming and switching workspaces:
 ```lua
 wezterm.on('augment-command-palette', function(window, pane)
+  local workspace_state = resurrect.workspace_state
   return {
     {
       brief = 'Window | Workspace: Switch Workspace',
