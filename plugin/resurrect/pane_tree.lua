@@ -1,8 +1,15 @@
+local wezterm = require("wezterm")
 local pub = {}
 
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}
 ---@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string[], cwd: string, process: string, pane: Pane?, is_active: boolean, is_zoomed: boolean}
+
+--- checks if the user is on windows
+--- @return boolean
+local function is_windows()
+	return wezterm.target_triple == "x86_64-pc-windows-msvc"
+end
 
 ---compare function returns true if a is more left than b
 ---@param a PaneInformation
@@ -73,7 +80,9 @@ function pub.get_shell_process(process)
 		return process
 	elseif process == "sh" then
 		return process
-	elseif process == "powershell" then
+	elseif process == "pwsh.exe" then
+		return process
+	elseif process == "cmd.exe" then
 		return process
 	else
 		return nil
@@ -89,6 +98,9 @@ local function insert_panes(root, panes)
 	end
 
 	root.cwd = root.pane:get_current_working_dir().file_path
+	if is_windows() then
+		root.cwd = root.cwd:gsub("^/([a-zA-Z]):", "%1:")
+	end
 	root.process = root.pane:get_foreground_process_name()
 	if pub.get_shell_process(root.process) then
 		root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
