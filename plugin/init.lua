@@ -57,11 +57,7 @@ local function get_file_path(file_name, type, opt_name)
 	if opt_name then
 		file_name = opt_name
 	end
-	if is_windows() then
-		return string.format('"%s%s\\%s.json"', pub.save_state_dir, type, file_name:gsub("\\", "+"))
-	else
-		return string.format("%s%s/%s.json", pub.save_state_dir, type, file_name:gsub("/", "+"))
-	end
+	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
 end
 
 ---@param file_path string
