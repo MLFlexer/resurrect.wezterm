@@ -183,6 +183,10 @@ wezterm.on('augment-command-palette', function(window, pane)
 end)
 ```
 
+## FAQ
+### Pane CWD is not correct on Windows
+If you pane CWD is incorrect then it might be a problem with the shell integration and OSC 7. See [Wezterm documentation](https://wezfurlong.org/wezterm/shell-integration.html#osc-7-on-windows-with-powershell-with-starship).
+
 ## Contributions
 Suggestions, Issues and PRs are welcome! The features currently implemented are the ones I use the most, but your workflow might differ. As such, if you have any proposals on how to improve the plugin please feel free to make an issue or even better a PR!
 
