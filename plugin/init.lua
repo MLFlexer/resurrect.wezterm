@@ -3,29 +3,45 @@ local pub = {}
 
 local plugin_dir
 
---- adds the wezterm plugin directory to the lua path
-local function enable_sub_modules()
-	if wezterm.target_triple == "x86_64-pc-windows-msvc" then
-		plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("\\[^\\]*$", "")
-		package.path = package.path .. ";" .. plugin_dir .. "\\?.lua"
-	else
-		plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub("/[^/]*$", "")
-		package.path = package.path .. ";" .. plugin_dir .. "/?.lua"
-	end
+--- checks if the user is on windows
+--- @return boolean
+local function is_windows()
+	return wezterm.target_triple == "x86_64-pc-windows-msvc"
 end
+local separator = is_windows() and "\\" or "/"
 
-enable_sub_modules()
+--- Checks if the plugin directory exists
+--- @return boolean
+local function directory_exists(path)
+	local success, result = pcall(wezterm.read_dir, plugin_dir .. path)
+	return success and result
+end
 
 --- Returns the name of the package, used when requiring modules
 --- @return string
 function pub.get_require_path()
-	return "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDswezterm"
+	local path1 = "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDswezterm"
+	local path2 = "httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDsweztermsZs"
+	return directory_exists(path2) and path2 or path1
 end
 
-pub.save_state_dir = plugin_dir .. "/httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDswezterm/state/"
-if wezterm.target_triple == "x86_64-pc-windows-msvc" then
-	pub.save_state_dir = plugin_dir .. "\\httpssCssZssZsgithubsDscomsZsMLFlexersZsresurrectsDswezterm\\state\\"
+--- adds the wezterm plugin directory to the lua path
+local function enable_sub_modules()
+	plugin_dir = wezterm.plugin.list()[1].plugin_dir:gsub(separator .. "[^" .. separator .. "]*$", "")
+	package.path = package.path
+		.. ";"
+		.. plugin_dir
+		.. separator
+		.. pub.get_require_path()
+		.. separator
+		.. "plugin"
+		.. separator
+		.. "?.lua"
 end
+
+enable_sub_modules()
+
+pub.save_state_dir = plugin_dir .. separator .. pub.get_require_path() .. separator .. "state" .. separator
 
 ---Changes the directory to save the state to
 ---@param directory string
@@ -41,8 +57,8 @@ local function get_file_path(file_name, type, opt_name)
 	if opt_name then
 		file_name = opt_name
 	end
-	if wezterm.target_triple == "x86_64-pc-windows-msvc" then
-		return string.format("%s%s\\%s.json", pub.save_state_dir, type, file_name:gsub("\\", "+"))
+	if is_windows() then
+		return string.format('"%s%s\\%s.json"', pub.save_state_dir, type, file_name:gsub("\\", "+"))
 	else
 		return string.format("%s%s/%s.json", pub.save_state_dir, type, file_name:gsub("/", "+"))
 	end
@@ -94,7 +110,7 @@ function pub.periodic_save(interval_seconds)
 		interval_seconds = 60 * 15
 	end
 	wezterm.time.call_after(interval_seconds, function()
-		local workspace_state = require(pub.get_require_path() .. ".plugin.resurrect.workspace_state")
+		local workspace_state = require("resurrect.workspace_state")
 		pub.save_state(workspace_state.get_workspace_state())
 		pub.periodic_save(interval_seconds)
 	end)
@@ -189,5 +205,13 @@ function pub.fuzzy_load(window, pane, callback, opts)
 		pane
 	)
 end
+
+-- Export submodules
+local workspace_state = require("resurrect.workspace_state")
+pub.workspace_state = workspace_state
+local window_state = require("resurrect.window_state")
+pub.window_state = window_state
+local tab_state = require("resurrect.tab_state")
+pub.tab_state = tab_state
 
 return pub

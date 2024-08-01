@@ -1,6 +1,4 @@
-local wezterm = require("wezterm")
-local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
-local pane_tree_mod = require(resurrect.get_require_path() .. ".plugin.resurrect.pane_tree")
+local pane_tree_mod = require("resurrect.pane_tree")
 local pub = {}
 
 ---Function used to split panes when mapping over the pane_tree
