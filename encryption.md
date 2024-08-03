@@ -135,7 +135,7 @@ resurrect.set_encryption({
   end,
   decrypt = function(file_path)
     local success, stdout, stderr =
-      execute_shell_cmd(string.format('gpg --decrypt "%s"', file_path))
+			execute_shell_cmd(string.format("gpg --decrypt \"%s\" | tr -d '\\000-\\037'", file_path)) -- TODO: fix (\u0000-\u001F) from being included
     if not success then
       wezterm.log_error(stderr)
     else
