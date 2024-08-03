@@ -11,22 +11,26 @@ local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 
 local function execute_shell_cmd(cmd)
+	local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
 	local process_args = is_windows and { "cmd.exe", "/C", cmd } or { os.getenv("SHELL"), "-c", cmd }
 	local success, stdout, stderr = wezterm.run_child_process(process_args)
 	return success, stdout, stderr
 end
 
+local public_key = "public_key"
+local private_key = "/path/to/private/key.txt"
+
 
 resurrect.set_encryption({
   enable = true,
-  private_key = "/path/to/private/key.txt",
-  public_key = "public_key",
+  private_key = private_key,
+  public_key = public_key,
 	encrypt = function(file_path, lines)
 		local success, _, stderr = execute_shell_cmd(
 			string.format(
 				"echo %s | age -r %s -o %s",
 				wezterm.shell_quote_arg(lines),
-				pub.encryption.public_key,
+				public_key,
 				file_path:gsub(" ", "\\ ")
 			)
 		)
@@ -36,7 +40,7 @@ resurrect.set_encryption({
 	end,
 	decrypt = function(file_path)
 		local success, stdout, stderr =
-			execute_shell_cmd(string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path))
+			execute_shell_cmd(string.format('age -d -i "%s" "%s"', private_key, file_path))
 		if not success then
 			wezterm.log_error(stderr)
 		else
@@ -57,22 +61,25 @@ local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 
 local function execute_shell_cmd(cmd)
+	local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
 	local process_args = is_windows and { "cmd.exe", "/C", cmd } or { os.getenv("SHELL"), "-c", cmd }
 	local success, stdout, stderr = wezterm.run_child_process(process_args)
 	return success, stdout, stderr
 end
 
+local public_key = "public_key"
+local private_key = "/path/to/private/key.txt"
 
 resurrect.set_encryption({
   enable = true,
-  private_key = "/path/to/private/key.txt",
-  public_key = "public_key",
+  private_key = private_key,
+  public_key = public_key,
 	encrypt = function(file_path, lines)
 		local success, _, stderr = execute_shell_cmd(
 			string.format(
 				"echo %s | rage -r %s -o %s",
 				wezterm.shell_quote_arg(lines),
-				pub.encryption.public_key,
+				public_key,
 				file_path:gsub(" ", "\\ ")
 			)
 		)
@@ -82,12 +89,58 @@ resurrect.set_encryption({
 	end,
 	decrypt = function(file_path)
 		local success, stdout, stderr =
-			execute_shell_cmd(string.format('rage -d -i "%s" "%s"', pub.encryption.private_key, file_path))
+			execute_shell_cmd(string.format('rage -d -i "%s" "%s"', private_key, file_path))
 		if not success then
 			wezterm.log_error(stderr)
 		else
 			return stdout
 		end
 	end,
+})
+```
+## GPG
+[GnuPG](https://gnupg.org/) can be used by installing it to the path.
+Then generating a key pair: `gpg --full-generate-key`
+Get the public key with `gpg --armor --export your_email@example.com`
+
+
+```lua
+local wezterm = require("wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+
+local function execute_shell_cmd(cmd)
+	local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
+	local process_args = is_windows and { "cmd.exe", "/C", cmd } or { os.getenv("SHELL"), "-c", cmd }
+	local success, stdout, stderr = wezterm.run_child_process(process_args)
+	return success, stdout, stderr
+end
+
+local public_key = "your_email@example.com"
+
+resurrect.set_encryption({
+  enable = true,
+  public_key = public_key,
+  encrypt = function(file_path, lines)
+    local success, _, stderr = execute_shell_cmd(
+      string.format(
+        'echo %s | gpg --encrypt --recipient %s --output %s',
+        wezterm.shell_quote_arg(lines),
+        public_key,
+        file_path:gsub(" ", "\\ ")
+      )
+    )
+    if not success then
+      wezterm.log_error(stderr)
+    end
+  end,
+  decrypt = function(file_path)
+    local success, stdout, stderr =
+      execute_shell_cmd(string.format('gpg --decrypt "%s"', file_path))
+    if not success then
+      wezterm.log_error(stderr)
+    else
+      return stdout
+    end
+  end,
 })
 ```
