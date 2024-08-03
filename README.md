@@ -72,6 +72,7 @@ config.keys = {
 4. Optional: Enable `age` encryption (requires [age](https://github.com/FiloSottile/age) to be installed and available on your PATH):
 
 You can optionally configure the plugin to encrypt and decrypt the saved state.
+See [encryption doc](/encryption.md) for other encryption providers and configuration.
 
 4.1. Install `age` and generate a key with:
 ```sh

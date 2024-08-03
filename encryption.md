@@ -45,3 +45,49 @@ resurrect.set_encryption({
 	end,
 })
 ```
+
+# Providers
+If you think something is missing, then please provide a PR or an issue.
+
+## Rage
+[Rage](https://github.com/str4d/rage) is a drop in replacement for age and can be used by installing it to the path, and then using the following code:
+
+```lua
+local wezterm = require("wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+
+local function execute_shell_cmd(cmd)
+	local process_args = is_windows and { "cmd.exe", "/C", cmd } or { os.getenv("SHELL"), "-c", cmd }
+	local success, stdout, stderr = wezterm.run_child_process(process_args)
+	return success, stdout, stderr
+end
+
+
+resurrect.set_encryption({
+  enable = true,
+  private_key = "/path/to/private/key.txt",
+  public_key = "public_key",
+	encrypt = function(file_path, lines)
+		local success, _, stderr = execute_shell_cmd(
+			string.format(
+				"echo %s | rage -r %s -o %s",
+				wezterm.shell_quote_arg(lines),
+				pub.encryption.public_key,
+				file_path:gsub(" ", "\\ ")
+			)
+		)
+		if not success then
+			wezterm.log_error(stderr)
+		end
+	end,
+	decrypt = function(file_path)
+		local success, stdout, stderr =
+			execute_shell_cmd(string.format('rage -d -i "%s" "%s"', pub.encryption.private_key, file_path))
+		if not success then
+			wezterm.log_error(stderr)
+		else
+			return stdout
+		end
+	end,
+})
+```
