@@ -7,11 +7,8 @@ local pub = {}
 local plugin_dir
 
 --- checks if the user is on windows
---- @return boolean
-local function is_windows()
-	return wezterm.target_triple == "x86_64-pc-windows-msvc"
-end
-local separator = is_windows() and "\\" or "/"
+local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
+local separator = is_windows and "\\" or "/"
 
 --- Checks if the plugin directory exists
 --- @return boolean
@@ -69,7 +66,7 @@ pub.encryption = {
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local success, stdout, stderr = wezterm.run_child_process({
+		local args = {
 			"sh",
 			"-c",
 
@@ -81,7 +78,13 @@ pub.encryption = {
 				.. pub.encryption.public_key
 				.. " -o "
 				.. file_path,
-		})
+		}
+		if is_windows then
+			args[1] = "cmd"
+			args[2] = "/c"
+		end
+
+		local success, stdout, stderr = wezterm.run_child_process(args)
 		-- TODO: update with toast when implemented
 		if not success then
 			wezterm.log_error(stderr)
