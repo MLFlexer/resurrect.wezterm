@@ -8,6 +8,7 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 * Restore shell output from a saved session.
 * Save the state of your current window, with every window, tab and pane state stored in a `json` file.
 * Restore the save from a `json` file.
+* Optionally enable [age](https://github.com/FiloSottile/age) encryption and decryption of the saved state.
 
 ## Setup example
 1. require the plugin:
@@ -53,7 +54,6 @@ config.keys = {
     mods = "ALT",
     action = wezterm.action.Multiple({
       wezterm.action_callback(function(win, pane)
-	local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
 	resurrect.fuzzy_load(win, pane, function(id, label)
 	  id = string.match(id, "([^/]+)$")
 	  id = string.match(id, "(.+)%..+$")
@@ -68,6 +68,58 @@ config.keys = {
     }),
   },
 }
+```
+
+4. Optional: Enable `age` encryption (requires [age](https://github.com/FiloSottile/age) to be installed and available on your PATH):
+
+You can optionally configure the plugin to encrypt and decrypt the saved state.
+
+4.1. Install `age` and generate a key with:
+```sh
+$ age-keygen -o key.txt
+Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+```
+
+4.2. Enable encryption in your Wezterm config:
+```lua
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+resurrect.set_encryption({
+  enable = true,
+  private_key = "/path/to/private/key.txt",
+  public_key = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
+})
+```
+
+ Currently, only `age` encryption is supported. Alternate implementations are possible by providing your own `encrypt` and `decrypt` functions:
+```lua
+resurrect.set_encryption({
+  enable = true,
+  private_key = "/path/to/private/key.txt",
+  public_key = "public_key",
+  encrypt = function(file_path, lines)
+    local success, stdout, stderr = wezterm.run_child_process({
+      os.getenv("SHELL"),
+      "-c",
+      -- command to encrypt
+    })
+    if not success then
+        wezterm.log_error(stderr)
+    end
+    wezterm.log_info(stdout)
+  end,
+  decrypt = function(file_path)
+    local success, stdout, stderr = wezterm.run_child_process({
+      os.getenv("SHELL"),
+      "-c",
+      -- command to decrypt
+    })
+    if not success then
+        wezterm.log_error(stderr)
+    else
+        return stdout
+    end
+  end,
+})
 ```
 
 ## How do I use it?
@@ -158,6 +210,8 @@ State files are json files, which will be decoded into lua tables. This can be u
 
 If you would like to add entries in your Wezterm command palette for renaming and switching workspaces:
 ```lua
+local workspace_switcher = wezterm.plugin.require 'https://github.com/MLFlexer/smart_workspace_switcher.wezterm'
+
 wezterm.on('augment-command-palette', function(window, pane)
   local workspace_state = resurrect.workspace_state
   return {

@@ -1,4 +1,7 @@
 local wezterm = require("wezterm")
+
+---@class init_module
+---@field encryption encryption_opts
 local pub = {}
 
 local plugin_dir
@@ -60,23 +63,89 @@ local function get_file_path(file_name, type, opt_name)
 	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
 end
 
+local shell = is_windows() and { "cmd.exe", "/C" } or { os.getenv("SHELL"), "-c" }
+
+---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string[]), decrypt: fun(file_path: string): string | nil}
+local encryption_opts = {
+	enable = false,
+	private_key = nil,
+	public_key = nil,
+	encrypt = function(file_path, lines)
+		local success, stdout, stderr = wezterm.run_child_process({
+			shell[1],
+			shell[2],
+			string.format(
+				"echo %s | age -r %s -o %s",
+				wezterm.shell_quote_arg(lines),
+				pub.encryption.public_key,
+				file_path:gsub(" ", "\\ ")
+			),
+		})
+		-- TODO: update with toast when implemented
+		if not success then
+			wezterm.log_error(stderr)
+		end
+		wezterm.log_info(stdout)
+	end,
+	decrypt = function(file_path)
+		local success, stdout, stderr = wezterm.run_child_process({
+			shell[1],
+			shell[2],
+			string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path),
+		})
+		-- TODO: update with toast when implemented
+		if not success then
+			wezterm.log_error(stderr)
+		else
+			return stdout
+		end
+	end,
+}
+
+pub.encryption = encryption_opts
+
+--- Merges user-supplied options with default options
+--- @param user_opts encryption_opts
+function pub.set_encryption(user_opts)
+	local merged = {}
+	for k, v in pairs(encryption_opts) do
+		merged[k] = v
+	end
+	for k, v in pairs(user_opts) do
+		if v ~= nil then
+			merged[k] = v
+		end
+	end
+	pub.encryption = merged
+end
+
 ---@param file_path string
----@param json_table table
-local function write_json(file_path, json_table)
-	local file = assert(io.open(file_path, "w"))
-	file:write(wezterm.json_encode(json_table))
-	file:close()
+---@param state table
+local function write_state(file_path, state)
+	local json_state = wezterm.json_encode(state)
+	if pub.encryption.enable then
+		pub.encryption.encrypt(file_path, json_state)
+	else
+		local file = assert(io.open(file_path, "w"))
+		file:write(json_state)
+		file:close()
+	end
 end
 
 ---@param file_path string
 ---@return table
 local function load_json(file_path)
-	local lines = {}
-	for line in io.lines(file_path) do
-		table.insert(lines, line)
+	if pub.encryption.enable then
+		local json = pub.encryption.decrypt(file_path)
+		return wezterm.json_parse(json)
+	else
+		local lines = {}
+		for line in io.lines(file_path) do
+			table.insert(lines, line)
+		end
+		local json = table.concat(lines)
+		return wezterm.json_parse(json)
 	end
-	local json = table.concat(lines)
-	return wezterm.json_parse(json)
 end
 
 ---save state to a file
@@ -84,11 +153,11 @@ end
 ---@param opt_name? string
 function pub.save_state(state, opt_name)
 	if state.window_states then
-		write_json(get_file_path(state.workspace, "workspace", opt_name), state)
+		write_state(get_file_path(state.workspace, "workspace", opt_name), state)
 	elseif state.tabs then
-		write_json(get_file_path(state.workspace, "window", opt_name), state)
+		write_state(get_file_path(state.workspace, "window", opt_name), state)
 	elseif state.pane_tree then
-		write_json(get_file_path(state.pane_tree.cwd, "tab", opt_name), state)
+		write_state(get_file_path(state.pane_tree.cwd, "tab", opt_name), state)
 	end
 end
 
