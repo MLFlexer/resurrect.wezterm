@@ -60,31 +60,26 @@ local function get_file_path(file_name, type, opt_name)
 	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
 end
 
+
+local shell = is_windows() and { "cmd.exe", "/C" } or { os.getenv("SHELL"), "-c" }
+
 ---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string[]), decrypt: fun(file_path: string): string | nil}
-pub.encryption = {
+local encryption_opts = {
 	enable = false,
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local args = {
-			"sh",
-			"-c",
+		local success, stdout, stderr = wezterm.run_child_process({
+			shell[1],
+			shell[2],
+			string.format(
+				"echo %s | age -r %s -o %s",
+				wezterm.shell_quote_arg(lines),
+				pub.encryption.public_key,
+				file_path:gsub(" ", "\\ ")
+			),
 
-			"echo "
-				.. wezterm.shell_quote_arg(lines)
-				.. " | "
-				.. "age "
-				.. "-r "
-				.. pub.encryption.public_key
-				.. " -o "
-				.. file_path,
-		}
-		if is_windows then
-			args[1] = "cmd"
-			args[2] = "/c"
-		end
-
-		local success, stdout, stderr = wezterm.run_child_process(args)
+		})
 		-- TODO: update with toast when implemented
 		if not success then
 			wezterm.log_error(stderr)
@@ -92,8 +87,11 @@ pub.encryption = {
 		wezterm.log_info(stdout)
 	end,
 	decrypt = function(file_path)
-		local success, stdout, stderr =
-			wezterm.run_child_process({ "age", "-d", "-i", pub.encryption.private_key, file_path })
+		local success, stdout, stderr = wezterm.run_child_process({
+			shell[1],
+			shell[2],
+			string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path),
+		})
 		-- TODO: update with toast when implemented
 		if not success then
 			wezterm.log_error(stderr)
@@ -102,6 +100,23 @@ pub.encryption = {
 		end
 	end,
 }
+
+pub.encryption = encryption_opts
+
+--- Merges user-supplied options with default options
+--- @param user_opts encryption_opts
+function pub.set_encryption(user_opts)
+	local merged = {}
+	for k, v in pairs(encryption_opts) do
+		merged[k] = v
+	end
+	for k, v in pairs(user_opts) do
+		if v ~= nil then
+			merged[k] = v
+		end
+	end
+	pub.encryption = merged
+end
 
 ---@param file_path string
 ---@param state table
