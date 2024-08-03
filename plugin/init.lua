@@ -63,12 +63,12 @@ end
 local shell = is_windows and { "cmd.exe", "/C" } or { os.getenv("SHELL"), "-c" }
 
 ---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string[]), decrypt: fun(file_path: string): string | nil}
-local encryption_opts = {
+pub.encryption = {
 	enable = false,
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local success, stdout, stderr = wezterm.run_child_process({
+		local success, _, stderr = wezterm.run_child_process({
 			shell[1],
 			shell[2],
 			string.format(
@@ -77,13 +77,11 @@ local encryption_opts = {
 				pub.encryption.public_key,
 				file_path:gsub(" ", "\\ ")
 			),
-
 		})
 		-- TODO: update with toast when implemented
 		if not success then
 			wezterm.log_error(stderr)
 		end
-		wezterm.log_info(stdout)
 	end,
 	decrypt = function(file_path)
 		local success, stdout, stderr = wezterm.run_child_process({
@@ -100,21 +98,14 @@ local encryption_opts = {
 	end,
 }
 
-pub.encryption = encryption_opts
-
 --- Merges user-supplied options with default options
 --- @param user_opts encryption_opts
 function pub.set_encryption(user_opts)
-	local merged = {}
-	for k, v in pairs(encryption_opts) do
-		merged[k] = v
-	end
 	for k, v in pairs(user_opts) do
 		if v ~= nil then
-			merged[k] = v
+			pub.encryption[k] = v
 		end
 	end
-	pub.encryption = merged
 end
 
 ---@param file_path string
