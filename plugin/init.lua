@@ -60,8 +60,7 @@ local function get_file_path(file_name, type, opt_name)
 	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
 end
 
-
-local shell = is_windows() and { "cmd.exe", "/C" } or { os.getenv("SHELL"), "-c" }
+local shell = is_windows and { "cmd.exe", "/C" } or { os.getenv("SHELL"), "-c" }
 
 ---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string[]), decrypt: fun(file_path: string): string | nil}
 local encryption_opts = {
