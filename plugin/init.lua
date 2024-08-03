@@ -60,7 +60,16 @@ local function get_file_path(file_name, type, opt_name)
 	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
 end
 
-local shell = is_windows and { "cmd.exe", "/C" } or { os.getenv("SHELL"), "-c" }
+---executes command in the shell
+---@param cmd string
+---@return boolean
+---@return string
+---@return string
+local function execute_shell_cmd(cmd)
+	local process_args = is_windows and { "cmd.exe", "/C", cmd } or { os.getenv("SHELL"), "-c", cmd }
+	local success, stdout, stderr = wezterm.run_child_process(process_args)
+	return success, stdout, stderr
+end
 
 ---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string[]), decrypt: fun(file_path: string): string | nil}
 pub.encryption = {
@@ -68,27 +77,22 @@ pub.encryption = {
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local success, _, stderr = wezterm.run_child_process({
-			shell[1],
-			shell[2],
+		local success, _, stderr = execute_shell_cmd(
 			string.format(
 				"echo %s | age -r %s -o %s",
 				wezterm.shell_quote_arg(lines),
 				pub.encryption.public_key,
 				file_path:gsub(" ", "\\ ")
-			),
-		})
+			)
+		)
 		-- TODO: update with toast when implemented
 		if not success then
 			wezterm.log_error(stderr)
 		end
 	end,
 	decrypt = function(file_path)
-		local success, stdout, stderr = wezterm.run_child_process({
-			shell[1],
-			shell[2],
-			string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path),
-		})
+		local success, stdout, stderr =
+			execute_shell_cmd(string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path))
 		-- TODO: update with toast when implemented
 		if not success then
 			wezterm.log_error(stderr)
