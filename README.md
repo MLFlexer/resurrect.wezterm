@@ -194,13 +194,5 @@ Restoring of the panes are done via. the `pane_tree` file, which has functions t
 
 
 ## Disclaimer
-As the software currently saves the state to plaintext json files then you have to be aware of the security risks of saving potential secure shell output to plaintext files. The plan is to add encryption to the files, however this has not been implemented yet.
-
-### Security Warning
-
-This software is provided "as is" and may contain security vulnerabilities. Users are responsible for ensuring the security of their own systems and data. It is strongly recommended to thoroughly test this software in a controlled environment before deploying it in a production setting. Regular updates and security reviews are essential for maintaining the security of your system.
-
-### Limitation of Liability
-
-The authors and contributors of this software shall not be held liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) arising in any way out of the use of this software, even if advised of the possibility of such damage.
+If you don't setup encryption then the state of your terminal is saved as plaintext json files. Please be aware that the plugin will by default write the output of the shell among other things, which could contain secrets or other vulnerable data. If you do not want to store this as plaintext, then please use the provided implementation for encrypting with [age](https://github.com/FiloSottile/age) or see [encryption docs](/encryption.md) for other ways to encrypt your state.
 
