@@ -15,12 +15,13 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 ```
-1.1 ⚠️⚠️⚠️ FOR WINDOWS USERS ⚠️⚠️⚠️
-
-You must ensure that there is write access to the directory where the state is stored, as such it is suggested that you set your own state direcory like so:
-```lua
-resurrect.save_state_dir = "C:\\Users\\Admin\\Desktop\\state\\" -- Set some directory where wezterm has write access
-```
+> [!WARNING] 
+> 1.1 FOR WINDOWS USERS
+> 
+> You must ensure that there is write access to the directory where the state is stored, as such it is suggested that you set your own state direcory like so:
+> ```lua
+> resurrect.save_state_dir = "C:\\Users\\Admin\\Desktop\\state\\" -- Set some directory where wezterm has write access
+> ```
 
 2. Saving workspace state:
 ```lua
