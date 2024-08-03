@@ -10,7 +10,7 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 * Restore the save from a `json` file.
 
 ## Setup example
-1. require the plugin:
+1. Require the plugin:
 ```lua
 local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
@@ -26,7 +26,6 @@ local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.
 2. Saving workspace state:
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
-local workspace_state = resurrect.workspace_state
 
 config.keys = {
   -- ...
@@ -35,7 +34,7 @@ config.keys = {
   mods = "ALT",
   action = wezterm.action.Multiple({
     wezterm.action_callback(function(win, pane)
-      resurrect.save_state(workspace_state.get_workspace_state())
+      resurrect.save_state(resurrect.workspace_state.get_workspace_state())
     end),
     }),
   },
@@ -45,7 +44,6 @@ config.keys = {
 3. Loading workspace state via. fuzzy finder:
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
-local workspace_state = resurrect.workspace_state
 
 config.keys = {
   -- ...
@@ -54,12 +52,12 @@ config.keys = {
     mods = "ALT",
     action = wezterm.action.Multiple({
       wezterm.action_callback(function(win, pane)
-	local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
+	local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 	resurrect.fuzzy_load(win, pane, function(id, label)
 	  id = string.match(id, "([^/]+)$")
 	  id = string.match(id, "(.+)%..+$")
 	  local state = resurrect.load_state(id, "workspace")
-	  workspace_state.restore_workspace(state, {
+	  resurrect.workspace_state.restore_workspace(state, {
 	    relative = true,
 	    restore_text = true,
             on_pane_restore = resurrect.tab_state.default_on_pane_restore,
