@@ -118,29 +118,29 @@ end
 local public_key = "your_email@example.com"
 
 resurrect.set_encryption({
-  enable = true,
-  public_key = public_key,
-  encrypt = function(file_path, lines)
-    local success, _, stderr = execute_shell_cmd(
-      string.format(
-        'echo %s | gpg --encrypt --recipient %s --output %s',
-        wezterm.shell_quote_arg(lines),
-        public_key,
-        file_path:gsub(" ", "\\ ")
-      )
-    )
-    if not success then
-      wezterm.log_error(stderr)
-    end
-  end,
-  decrypt = function(file_path)
-    local success, stdout, stderr =
-			execute_shell_cmd(string.format("gpg --decrypt \"%s\" | tr -d '\\000-\\037'", file_path)) -- TODO: fix (\u0000-\u001F) from being included
-    if not success then
-      wezterm.log_error(stderr)
-    else
-      return stdout
-    end
-  end,
+	enable = true,
+	public_key = public_key,
+	encrypt = function(file_path, lines)
+		local success, _, stderr = execute_shell_cmd(
+			string.format(
+				"echo %s | gpg --batch --yes --encrypt --recipient %s --output %s",
+				wezterm.shell_quote_arg(lines),
+				public_key,
+				file_path:gsub(" ", "\\ ")
+			)
+		)
+		if not success then
+			wezterm.log_error(stderr)
+		end
+	end,
+	decrypt = function(file_path)
+		local success, stdout, stderr = execute_shell_cmd(string.format('gpg --batch --yes --decrypt "%s"', file_path))
+		if not success then
+			wezterm.log_error(stderr)
+		else
+			wezterm.log_info(stdout)
+			return stdout
+		end
+	end,
 })
 ```
