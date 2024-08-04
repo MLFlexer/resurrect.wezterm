@@ -112,11 +112,13 @@ function pub.set_encryption(user_opts)
 	end
 end
 
---- Sanitize the input by removing control characters and invalid UTF-8 sequences
+--- Sanitize the input by replacing control characters and invalid UTF-8 sequences with valid \uxxxx unicode
 --- @param data string
 --- @return string
 local function sanitize_json(data)
-	data = data:gsub("[\x00-\x1F\x7F]", "")
+	data = data:gsub("[\x00-\x1F\x7F]", function(c)
+		return string.format("\\u00%02X", string.byte(c))
+	end)
 	return data
 end
 
