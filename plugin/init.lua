@@ -71,7 +71,7 @@ local function execute_shell_cmd(cmd)
 	return success, stdout, stderr
 end
 
----@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string[]), decrypt: fun(file_path: string): string | nil}
+---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string | nil}
 pub.encryption = {
 	enable = false,
 	private_key = nil,
@@ -112,10 +112,19 @@ function pub.set_encryption(user_opts)
 	end
 end
 
+--- Sanitize the input by removing control characters and invalid UTF-8 sequences
+--- @param data string
+--- @return string
+local function sanitize_json(data)
+	data = data:gsub("[\x00-\x1F\x7F]", "")
+	return data
+end
+
 ---@param file_path string
 ---@param state table
 local function write_state(file_path, state)
 	local json_state = wezterm.json_encode(state)
+	json_state = sanitize_json(json_state)
 	if pub.encryption.enable then
 		pub.encryption.encrypt(file_path, json_state)
 	else
@@ -128,17 +137,21 @@ end
 ---@param file_path string
 ---@return table
 local function load_json(file_path)
+	local json
 	if pub.encryption.enable then
-		local json = pub.encryption.decrypt(file_path)
-		return wezterm.json_parse(json)
+		json = pub.encryption.decrypt(file_path)
 	else
 		local lines = {}
 		for line in io.lines(file_path) do
 			table.insert(lines, line)
 		end
-		local json = table.concat(lines)
-		return wezterm.json_parse(json)
+		json = table.concat(lines)
 	end
+	if not json then
+		return {}
+	end
+	json = sanitize_json(json)
+	return wezterm.json_parse(json)
 end
 
 ---save state to a file
