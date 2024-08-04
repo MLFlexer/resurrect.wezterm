@@ -77,14 +77,18 @@ pub.encryption = {
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local success, _, stderr = execute_shell_cmd(
-			string.format(
-				"echo %s | age -r %s -o %s",
-				wezterm.shell_quote_arg(lines),
+		local cmd =
+			string.format("printf '%s' | age -r %s -o %s", lines, pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+
+		if is_windows then
+			cmd = string.format(
+				"echo '%s' | age -r %s -o %s",
+				lines,
 				pub.encryption.public_key,
 				file_path:gsub(" ", "\\ ")
 			)
-		)
+		end
+		local success, _, stderr = execute_shell_cmd(cmd)
 		-- TODO: update with toast when implemented
 		if not success then
 			wezterm.log_error(stderr)
@@ -92,7 +96,7 @@ pub.encryption = {
 	end,
 	decrypt = function(file_path)
 		local success, stdout, stderr =
-			execute_shell_cmd(string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path))
+			execute_shell_cmd(string.format("age -d -i '%s' '%s'", pub.encryption.private_key, file_path))
 		-- TODO: update with toast when implemented
 		if not success then
 			wezterm.log_error(stderr)
