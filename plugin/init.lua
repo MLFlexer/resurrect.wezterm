@@ -66,7 +66,8 @@ end
 ---@return string
 ---@return string
 local function execute_shell_cmd(cmd)
-	local process_args = is_windows and { "cmd.exe", "/C", cmd } or { os.getenv("SHELL"), "-c", cmd }
+	local process_args = is_windows and { "pwsh.exe", "-NoProfile", "-Command", cmd } or
+		{ os.getenv("SHELL"), "-c", cmd }
 	local success, stdout, stderr = wezterm.run_child_process(process_args)
 	return success, stdout, stderr
 end
@@ -81,11 +82,12 @@ pub.encryption = {
 			string.format("printf '%s' | age -r %s -o %s", lines, pub.encryption.public_key, file_path:gsub(" ", "\\ "))
 
 		if is_windows then
+			lines = lines:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
 			cmd = string.format(
-				"echo '%s' | age -r %s -o %s",
+				"Write-Output -NoEnumerate \"%s\" | age -r %s -o \"%s\"",
 				lines,
 				pub.encryption.public_key,
-				file_path:gsub(" ", "\\ ")
+				file_path
 			)
 		end
 		local success, _, stderr = execute_shell_cmd(cmd)
@@ -95,12 +97,23 @@ pub.encryption = {
 		end
 	end,
 	decrypt = function(file_path)
+		local cmd = string.format("age -d -i '%s' '%s'", pub.encryption.private_key, file_path)
+		if is_windows then
+			cmd = string.format(
+				"age -d -i \"%s\" \"%s\"",
+				pub.encryption.private_key,
+				file_path
+			)
+		end
 		local success, stdout, stderr =
-			execute_shell_cmd(string.format("age -d -i '%s' '%s'", pub.encryption.private_key, file_path))
+			execute_shell_cmd(cmd)
 		-- TODO: update with toast when implemented
 		if not success then
 			wezterm.log_error(stderr)
 		else
+			if is_windows then
+				stdout = stdout:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
+			end
 			return stdout
 		end
 	end,
@@ -121,7 +134,20 @@ end
 --- @return string
 local function sanitize_json(data)
 	data = data:gsub("[\x00-\x1F\x7F]", function(c)
-		return string.format("\\u00%02X", string.byte(c))
+		if is_windows then
+			local byte = string.byte(c)
+			if byte == 0x0A then
+				return "\n"
+			elseif byte == 0x0D then
+				return "\r"
+			elseif byte == 0x09 then
+				return "\t"
+			else
+				return string.format("\\u%04X", string.byte(c))
+			end
+		else
+			return string.format("\\u00%02X", string.byte(c))
+		end
 	end)
 	return data
 end
