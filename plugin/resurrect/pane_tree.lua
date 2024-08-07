@@ -6,10 +6,7 @@ local pub = {}
 ---@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string[], cwd: string, process: string, pane: Pane?, is_active: boolean, is_zoomed: boolean}
 
 --- checks if the user is on windows
---- @return boolean
-local function is_windows()
-	return wezterm.target_triple == "x86_64-pc-windows-msvc"
-end
+local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
 
 ---compare function returns true if a is more left than b
 ---@param a PaneInformation
@@ -98,7 +95,7 @@ local function insert_panes(root, panes)
 	end
 
 	root.cwd = root.pane:get_current_working_dir().file_path
-	if is_windows() then
+	if is_windows then
 		root.cwd = root.cwd:gsub("^/([a-zA-Z]):", "%1:")
 	end
 	root.process = root.pane:get_foreground_process_name()

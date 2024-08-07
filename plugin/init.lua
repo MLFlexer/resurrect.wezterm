@@ -1,14 +1,14 @@
 local wezterm = require("wezterm")
+
+---@class init_module
+---@field encryption encryption_opts
 local pub = {}
 
 local plugin_dir
 
 --- checks if the user is on windows
---- @return boolean
-local function is_windows()
-	return wezterm.target_triple == "x86_64-pc-windows-msvc"
-end
-local separator = is_windows() and "\\" or "/"
+local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
+local separator = is_windows and "\\" or "/"
 
 --- Checks if the plugin directory exists
 --- @return boolean
@@ -60,22 +60,129 @@ local function get_file_path(file_name, type, opt_name)
 	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
 end
 
+---executes command in the shell
+---@param cmd string
+---@return boolean
+---@return string
+---@return string
+local function execute_shell_cmd(cmd)
+	local process_args = is_windows and { "pwsh.exe", "-NoProfile", "-Command", cmd } or
+		{ os.getenv("SHELL"), "-c", cmd }
+	local success, stdout, stderr = wezterm.run_child_process(process_args)
+	return success, stdout, stderr
+end
+
+---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string | nil}
+pub.encryption = {
+	enable = false,
+	private_key = nil,
+	public_key = nil,
+	encrypt = function(file_path, lines)
+		local cmd =
+			string.format("printf '%s' | age -r %s -o %s", lines, pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+
+		if is_windows then
+			lines = lines:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
+			cmd = string.format(
+				"Write-Output -NoEnumerate \"%s\" | age -r %s -o \"%s\"",
+				lines,
+				pub.encryption.public_key,
+				file_path
+			)
+		end
+		local success, _, stderr = execute_shell_cmd(cmd)
+		-- TODO: update with toast when implemented
+		if not success then
+			wezterm.log_error(stderr)
+		end
+	end,
+	decrypt = function(file_path)
+		local cmd = string.format("age -d -i '%s' '%s'", pub.encryption.private_key, file_path)
+		if is_windows then
+			cmd = string.format(
+				"age -d -i \"%s\" \"%s\"",
+				pub.encryption.private_key,
+				file_path
+			)
+		end
+		local success, stdout, stderr =
+			execute_shell_cmd(cmd)
+		-- TODO: update with toast when implemented
+		if not success then
+			wezterm.log_error(stderr)
+		else
+			if is_windows then
+				stdout = stdout:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
+			end
+			return stdout
+		end
+	end,
+}
+
+--- Merges user-supplied options with default options
+--- @param user_opts encryption_opts
+function pub.set_encryption(user_opts)
+	for k, v in pairs(user_opts) do
+		if v ~= nil then
+			pub.encryption[k] = v
+		end
+	end
+end
+
+--- Sanitize the input by replacing control characters and invalid UTF-8 sequences with valid \uxxxx unicode
+--- @param data string
+--- @return string
+local function sanitize_json(data)
+	data = data:gsub("[\x00-\x1F\x7F]", function(c)
+		if is_windows then
+			local byte = string.byte(c)
+			if byte == 0x0A then
+				return "\n"
+			elseif byte == 0x0D then
+				return "\r"
+			elseif byte == 0x09 then
+				return "\t"
+			else
+				return string.format("\\u%04X", string.byte(c))
+			end
+		else
+			return string.format("\\u00%02X", string.byte(c))
+		end
+	end)
+	return data
+end
+
 ---@param file_path string
----@param json_table table
-local function write_json(file_path, json_table)
-	local file = assert(io.open(file_path, "w"))
-	file:write(wezterm.json_encode(json_table))
-	file:close()
+---@param state table
+local function write_state(file_path, state)
+	local json_state = wezterm.json_encode(state)
+	json_state = sanitize_json(json_state)
+	if pub.encryption.enable then
+		pub.encryption.encrypt(file_path, json_state)
+	else
+		local file = assert(io.open(file_path, "w"))
+		file:write(json_state)
+		file:close()
+	end
 end
 
 ---@param file_path string
 ---@return table
 local function load_json(file_path)
-	local lines = {}
-	for line in io.lines(file_path) do
-		table.insert(lines, line)
+	local json
+	if pub.encryption.enable then
+		json = pub.encryption.decrypt(file_path)
+	else
+		local lines = {}
+		for line in io.lines(file_path) do
+			table.insert(lines, line)
+		end
+		json = table.concat(lines)
 	end
-	local json = table.concat(lines)
+	if not json then
+		return {}
+	end
+	json = sanitize_json(json)
 	return wezterm.json_parse(json)
 end
 
@@ -84,11 +191,11 @@ end
 ---@param opt_name? string
 function pub.save_state(state, opt_name)
 	if state.window_states then
-		write_json(get_file_path(state.workspace, "workspace", opt_name), state)
+		write_state(get_file_path(state.workspace, "workspace", opt_name), state)
 	elseif state.tabs then
-		write_json(get_file_path(state.workspace, "window", opt_name), state)
+		write_state(get_file_path(state.workspace, "window", opt_name), state)
 	elseif state.pane_tree then
-		write_json(get_file_path(state.pane_tree.cwd, "tab", opt_name), state)
+		write_state(get_file_path(state.pane_tree.cwd, "tab", opt_name), state)
 	end
 end
 

@@ -8,9 +8,10 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 * Restore shell output from a saved session.
 * Save the state of your current window, with every window, tab and pane state stored in a `json` file.
 * Restore the save from a `json` file.
+* Optionally enable [age](https://github.com/FiloSottile/age) encryption and decryption of the saved state.
 
 ## Setup example
-1. require the plugin:
+1. Require the plugin:
 ```lua
 local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
@@ -26,7 +27,6 @@ local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.
 2. Saving workspace state:
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
-local workspace_state = resurrect.workspace_state
 
 config.keys = {
   -- ...
@@ -35,7 +35,7 @@ config.keys = {
   mods = "ALT",
   action = wezterm.action.Multiple({
     wezterm.action_callback(function(win, pane)
-      resurrect.save_state(workspace_state.get_workspace_state())
+      resurrect.save_state(resurrect.workspace_state.get_workspace_state())
     end),
     }),
   },
@@ -45,7 +45,6 @@ config.keys = {
 3. Loading workspace state via. fuzzy finder:
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
-local workspace_state = resurrect.workspace_state
 
 config.keys = {
   -- ...
@@ -54,12 +53,11 @@ config.keys = {
     mods = "ALT",
     action = wezterm.action.Multiple({
       wezterm.action_callback(function(win, pane)
-	local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm/")
 	resurrect.fuzzy_load(win, pane, function(id, label)
 	  id = string.match(id, "([^/]+)$")
 	  id = string.match(id, "(.+)%..+$")
 	  local state = resurrect.load_state(id, "workspace")
-	  workspace_state.restore_workspace(state, {
+	  resurrect.workspace_state.restore_workspace(state, {
 	    relative = true,
 	    restore_text = true,
             on_pane_restore = resurrect.tab_state.default_on_pane_restore,
@@ -69,6 +67,61 @@ config.keys = {
     }),
   },
 }
+```
+
+4. Optional: Enable `age` encryption (requires [age](https://github.com/FiloSottile/age) to be installed and available on your PATH):
+
+You can optionally configure the plugin to encrypt and decrypt the saved state.
+See [encryption doc](/encryption.md) for other encryption providers and configuration.
+> [!IMPORTANT]  
+> There is currently a problem with encrypting large states on Windows, see [#32](https://github.com/MLFlexer/resurrect.wezterm/issues/32).
+
+4.1. Install `age` and generate a key with:
+```sh
+$ age-keygen -o key.txt
+Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+```
+
+4.2. Enable encryption in your Wezterm config:
+```lua
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+resurrect.set_encryption({
+  enable = true,
+  private_key = "/path/to/private/key.txt",
+  public_key = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
+})
+```
+
+ Currently, only `age` encryption is supported. Alternate implementations are possible by providing your own `encrypt` and `decrypt` functions:
+```lua
+resurrect.set_encryption({
+  enable = true,
+  private_key = "/path/to/private/key.txt",
+  public_key = "public_key",
+  encrypt = function(file_path, lines)
+    local success, stdout, stderr = wezterm.run_child_process({
+      os.getenv("SHELL"),
+      "-c",
+      -- command to encrypt
+    })
+    if not success then
+        wezterm.log_error(stderr)
+    end
+    wezterm.log_info(stdout)
+  end,
+  decrypt = function(file_path)
+    local success, stdout, stderr = wezterm.run_child_process({
+      os.getenv("SHELL"),
+      "-c",
+      -- command to decrypt
+    })
+    if not success then
+        wezterm.log_error(stderr)
+    else
+        return stdout
+    end
+  end,
+})
 ```
 
 ## How do I use it?
@@ -159,6 +212,8 @@ State files are json files, which will be decoded into lua tables. This can be u
 
 If you would like to add entries in your Wezterm command palette for renaming and switching workspaces:
 ```lua
+local workspace_switcher = wezterm.plugin.require 'https://github.com/MLFlexer/smart_workspace_switcher.wezterm'
+
 wezterm.on('augment-command-palette', function(window, pane)
   local workspace_state = resurrect.workspace_state
   return {
@@ -196,13 +251,5 @@ Restoring of the panes are done via. the `pane_tree` file, which has functions t
 
 
 ## Disclaimer
-As the software currently saves the state to plaintext json files then you have to be aware of the security risks of saving potential secure shell output to plaintext files. The plan is to add encryption to the files, however this has not been implemented yet.
-
-### Security Warning
-
-This software is provided "as is" and may contain security vulnerabilities. Users are responsible for ensuring the security of their own systems and data. It is strongly recommended to thoroughly test this software in a controlled environment before deploying it in a production setting. Regular updates and security reviews are essential for maintaining the security of your system.
-
-### Limitation of Liability
-
-The authors and contributors of this software shall not be held liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) arising in any way out of the use of this software, even if advised of the possibility of such damage.
+If you don't setup encryption then the state of your terminal is saved as plaintext json files. Please be aware that the plugin will by default write the output of the shell among other things, which could contain secrets or other vulnerable data. If you do not want to store this as plaintext, then please use the provided implementation for encrypting with [age](https://github.com/FiloSottile/age) or see [encryption docs](/encryption.md) for other ways to encrypt your state.
 
