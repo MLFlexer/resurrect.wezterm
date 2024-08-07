@@ -3,6 +3,9 @@ The plugin saves the state of your terminal in written files. As the state can c
 
 The plugin provides by default a way to encrypt using [age](https://github.com/FiloSottile/age), but if you wish to change it, then this document will guide you.
 
+> [!IMPORTANT]  
+> There is currently a problem with encrypting large states on Windows, see [#32](https://github.com/MLFlexer/resurrect.wezterm/issues/32).
+
 If you wish to share a non-documented way of encrypting your files, then please make a PR or file an issue.
 ## Changing the encryption provider
 It is recommended to use [wezterm.run_child_process](https://wezfurlong.org/wezterm/config/lua/wezterm/run_child_process.html) like how it is done in the default `age` implementation below:
