@@ -72,8 +72,6 @@ config.keys = {
 4. Optional: Enable `age` encryption (requires [age](https://github.com/FiloSottile/age) to be installed and available on your PATH):
 
 You can optionally configure the plugin to encrypt and decrypt the saved state.
-> [!IMPORTANT]  
-> There is currently a problem with encrypting large states on Windows, see [#32](https://github.com/MLFlexer/resurrect.wezterm/issues/32).
 
 4.1. Install `age` and generate a key with:
 ```sh
@@ -160,7 +158,7 @@ This plugin emits the following events that you can use for your own callback fu
 - `resurrect.workspace_state.restore_workspace.start`
 - `resurrect.workspace_state.restore_workspace.finished`
 
-Example: sending a toast notification when specified events occur, but suppress on periodic_save:
+Example: sending a toast notification when specified events occur, but suppress on `periodic_save()`:
 ```lua
 local resurrect_event_listeners = {
   "resurrect.error",
