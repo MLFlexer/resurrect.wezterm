@@ -15,7 +15,7 @@ local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.
 
 local function execute_shell_cmd(cmd)
 	local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
-	local process_args = is_windows and { "cmd.exe", "/C", cmd } or { os.getenv("SHELL"), "-c", cmd }
+	local process_args = is_windows and { "pwsh.exe", "-NoProfile", "-NoLogo", "-Command", cmd } or { os.getenv("SHELL"), "-c", cmd }
 	local success, stdout, stderr = wezterm.run_child_process(process_args)
 	return success, stdout, stderr
 end
@@ -29,26 +29,50 @@ resurrect.set_encryption({
   private_key = private_key,
   public_key = public_key,
 	encrypt = function(file_path, lines)
-		local success, _, stderr = execute_shell_cmd(
-			string.format(
-				"echo %s | age -r %s -o %s",
-				wezterm.shell_quote_arg(lines),
-				public_key,
-				file_path:gsub(" ", "\\ ")
+		wezterm.emit("resurrect.encrypt.start", file_path)
+		local cmd =
+		string.format("printf '%s' | age -r %s -o %s", lines, pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+
+		if is_windows then
+			lines = lines:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
+			cmd = string.format(
+				"Write-Output -NoEnumerate \"%s\" | age -r %s -o \"%s\"",
+				lines,
+				pub.encryption.public_key,
+				file_path
 			)
-		)
-		if not success then
-			wezterm.log_error(stderr)
 		end
+
+		local ok, err = pcall(function() execute_shell_cmd(cmd) end)
+		if not ok then
+			wezterm.emit("resurrect.error", "resurrect.encrypt " .. tostring(err))
+			wezterm.log_error("Encryption failed: " .. tostring(err))
+		end
+		wezterm.emit("resurrect.encrypt.finished", file_path)
+		return ok
 	end,
 	decrypt = function(file_path)
-		local success, stdout, stderr =
-			execute_shell_cmd(string.format('age -d -i "%s" "%s"', private_key, file_path))
-		if not success then
-			wezterm.log_error(stderr)
-		else
-			return stdout
+		wezterm.emit("resurrect.decrypt.start", file_path)
+		local cmd = string.format("age -d -i '%s' '%s'", pub.encryption.private_key, file_path)
+		if is_windows then
+			cmd = string.format(
+				"age -d -i \"%s\" \"%s\"",
+				pub.encryption.private_key,
+				file_path
+			)
 		end
+		local success, stdout, stderr =
+		execute_shell_cmd(cmd)
+		if not success then
+			wezterm.emit("resurrect.error", "resurrect.decrypt " .. tostring(stderr))
+			wezterm.log_error("Decryption failed: " .. tostring(stderr))
+			return nil
+		end
+		if is_windows then
+			stdout = stdout:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
+		end
+		wezterm.emit("resurrect.decrypt.finished", file_path)
+		return stdout
 	end,
 })
 ```
@@ -65,7 +89,7 @@ local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.
 
 local function execute_shell_cmd(cmd)
 	local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
-	local process_args = is_windows and { "cmd.exe", "/C", cmd } or { os.getenv("SHELL"), "-c", cmd }
+	local process_args = is_windows and { "pwsh.exe", "-NoProfile", "-NoLogo", "-Command", cmd } or { os.getenv("SHELL"), "-c", cmd }
 	local success, stdout, stderr = wezterm.run_child_process(process_args)
 	return success, stdout, stderr
 end
@@ -87,17 +111,19 @@ resurrect.set_encryption({
 			)
 		)
 		if not success then
-			wezterm.log_error(stderr)
+			wezterm.emit("resurrect.error", "resurrect.encrypt " .. tostring(stderr))
+			wezterm.log_error("Encryption failed: " .. tostring(err))
 		end
+		return success
 	end,
 	decrypt = function(file_path)
 		local success, stdout, stderr =
 			execute_shell_cmd(string.format('rage -d -i "%s" "%s"', private_key, file_path))
 		if not success then
-			wezterm.log_error(stderr)
-		else
-			return stdout
-		end
+			wezterm.emit("resurrect.error", "resurrect.decrypt " .. tostring(stderr))
+			wezterm.log_error("Decryption failed: " .. tostring(stderr))
+			return nil
+		return stdout
 	end,
 })
 ```
@@ -113,7 +139,7 @@ local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.
 
 local function execute_shell_cmd(cmd)
 	local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
-	local process_args = is_windows and { "cmd.exe", "/C", cmd } or { os.getenv("SHELL"), "-c", cmd }
+	local process_args = is_windows and { "pwsh.exe", "-NoProfile", "-NoLogo", "-Command", cmd } or
 	local success, stdout, stderr = wezterm.run_child_process(process_args)
 	return success, stdout, stderr
 end
@@ -133,17 +159,19 @@ resurrect.set_encryption({
 			)
 		)
 		if not success then
+			wezterm.emit("resurrect.error", "resurrect.encrypt " .. tostring(stderr))
 			wezterm.log_error(stderr)
 		end
+		return success
 	end,
 	decrypt = function(file_path)
 		local success, stdout, stderr = execute_shell_cmd(string.format('gpg --batch --yes --decrypt "%s"', file_path))
 		if not success then
+			wezterm.emit("resurrect.error", "resurrect.decrypt " .. tostring(stderr))
 			wezterm.log_error(stderr)
-		else
-			wezterm.log_info(stdout)
-			return stdout
+			return nil
 		end
+		return stdout
 	end,
 })
 ```
