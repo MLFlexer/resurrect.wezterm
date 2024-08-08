@@ -145,7 +145,7 @@ This plugin emits the following events that you can use for your own callback fu
 - `resurrect.decrypt.finished(file_path)`
 - `resurrect.encrypt.start(file_path)`
 - `resurrect.encrypt.finished(file_path)`
-- `resurrect.error(stderr)`
+- `resurrect.error(err)`
 - `resurrect.load_state.start(name, type)`
 - `resurrect.load_state.finished(name, type)`
 - `resurrect.periodic_save`
