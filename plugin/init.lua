@@ -78,44 +78,36 @@ pub.encryption = {
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local cmd =
-			string.format("printf '%s' | age -r %s -o %s", lines, pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+		local cmd = string.format('age -r %s -o "%s"', pub.encryption.public_key, file_path:gsub(" ", "\\ "))
 
 		if is_windows then
 			lines = lines:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
-			cmd = string.format(
-				"Write-Output -NoEnumerate \"%s\" | age -r %s -o \"%s\"",
-				lines,
-				pub.encryption.public_key,
-				file_path
-			)
 		end
-		local success, _, stderr = execute_shell_cmd(cmd)
-		-- TODO: update with toast when implemented
-		if not success then
-			wezterm.log_error(stderr)
+
+		local stdin = io.popen(cmd, "w")
+		if not stdin then
+			wezterm.log_error("Could not open command: " .. cmd)
+			return
 		end
+		stdin:write(lines)
+		stdin:close()
 	end,
 	decrypt = function(file_path)
-		local cmd = string.format("age -d -i '%s' '%s'", pub.encryption.private_key, file_path)
+		local cmd = string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path)
+		-- if is_windows then
+		-- 	cmd = string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path)
+		-- end
+		local stdout = io.popen(cmd, "r")
+		if not stdout then
+			wezterm.log_error("Could not open command: " .. cmd)
+			return
+		end
+		local json_state = stdout:read("a")
+		stdout:close()
 		if is_windows then
-			cmd = string.format(
-				"age -d -i \"%s\" \"%s\"",
-				pub.encryption.private_key,
-				file_path
-			)
+			json_state = json_state:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
 		end
-		local success, stdout, stderr =
-			execute_shell_cmd(cmd)
-		-- TODO: update with toast when implemented
-		if not success then
-			wezterm.log_error(stderr)
-		else
-			if is_windows then
-				stdout = stdout:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
-			end
-			return stdout
-		end
+		return json_state
 	end,
 }
 
