@@ -60,18 +60,6 @@ local function get_file_path(file_name, type, opt_name)
 	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
 end
 
----executes command in the shell
----@param cmd string
----@return boolean
----@return string
----@return string
-local function execute_shell_cmd(cmd)
-	local process_args = is_windows and { "pwsh.exe", "-NoProfile", "-Command", cmd } or
-		{ os.getenv("SHELL"), "-c", cmd }
-	local success, stdout, stderr = wezterm.run_child_process(process_args)
-	return success, stdout, stderr
-end
-
 ---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string | nil}
 pub.encryption = {
 	enable = false,
@@ -94,9 +82,6 @@ pub.encryption = {
 	end,
 	decrypt = function(file_path)
 		local cmd = string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path)
-		-- if is_windows then
-		-- 	cmd = string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path)
-		-- end
 		local stdout = io.popen(cmd, "r")
 		if not stdout then
 			wezterm.log_error("Could not open command: " .. cmd)
