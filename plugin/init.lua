@@ -81,7 +81,17 @@ pub.encryption = {
 		stdin:close()
 	end,
 	decrypt = function(file_path)
-		local cmd = string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path)
+		local cmd =
+			string.format('PATH=%s age -d -i "%s" "%s"', os.getenv("PATH"), pub.encryption.private_key, file_path)
+		if is_windows then
+			cmd = string.format(
+				'set PATH=%s && age -d -i "%s" "%s"',
+				os.getenv("PATH"),
+				pub.encryption.private_key,
+				file_path
+			)
+		end
+
 		local stdout = io.popen(cmd, "r")
 		if not stdout then
 			wezterm.log_error("Could not open command: " .. cmd)
