@@ -177,7 +177,7 @@ for _, event in ipairs(resurrect_event_listeners) do
     local args = { ... }
     local msg = event
     for _, v in ipairs(args) do
-      msg = msg .. tostring(v)
+      msg = msg .. ' ' .. tostring(v)
     end
     wezterm.gui.gui_windows()[1]:toast_notification("Wezterm - resurrect", msg, nil, 4000)
   end)

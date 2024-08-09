@@ -79,7 +79,7 @@ pub.encryption = {
 	public_key = nil,
 	encrypt = function(file_path, lines)
 		wezterm.emit("resurrect.encrypt.start", file_path)
-		local cmd = string.format('age -r %s -o "%s"', pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+		local cmd = string.format('age -r %s -o "%s"', pub.encryption.public_key, file_path)
 
 		if is_windows then
 			lines = lines:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
