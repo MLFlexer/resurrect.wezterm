@@ -10,9 +10,15 @@ It is recommended to use [wezterm.run_child_process](https://wezfurlong.org/wezt
 local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 
+local function execute_shell_cmd(cmd)
+	local process_args = is_windows and { "pwsh.exe", "-NoProfile", "-NoLogo", "-Command", cmd } or
+		{ os.getenv("SHELL"), "-c", cmd }
+	local success, stdout, stderr = wezterm.run_child_process(process_args)
+	return success, stdout, stderr
+end
+
 local public_key = "public_key"
 local private_key = "/path/to/private/key.txt"
-
 
 resurrect.set_encryption({
   enable = true,
@@ -20,7 +26,7 @@ resurrect.set_encryption({
   public_key = public_key,
 	encrypt = function(file_path, lines)
 		wezterm.emit("resurrect.encrypt.start", file_path)
-		local cmd = string.format('age -r %s -o "%s"', public_key, file_path:gsub(" ", "\\ "))
+		local cmd = string.format('age -r %s -o "%s"', public_key, file_path)
 
 		if is_windows then
 			lines = lines:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
@@ -46,31 +52,20 @@ resurrect.set_encryption({
 	end,
 	decrypt = function(file_path)
 		wezterm.emit("resurrect.decrypt.start", file_path)
-		local cmd = string.format('age -d -i "%s" "%s"', private_key, file_path)
+		local cmd = string.format('age -d -i "%s" "%s"', pub.encryption.private_key, file_path)
 
-		local ok, result = pcall(function()
-			local stdout = io.popen(cmd, "r")
-			if not stdout then
-				wezterm.emit("resurrect.error", "resurrect.decrypt could not open command: " .. cmd)
-				wezterm.log_error("Could not open command: " .. cmd)
-				return
-			end
-			local json_state = stdout:read("a")
-			stdout:close()
-			if is_windows then
-				json_state = json_state:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
-			end
-			return json_state
-		end)
-
-		if not ok then
-			wezterm.emit("resurrect.error", "resurrect.decrypt: " .. tostring(result))
-			wezterm.log_error("Decryption failed: " .. tostring(result))
+		local success, stdout, stderr = execute_shell_cmd(cmd)
+		if not success then
+			wezterm.emit("resurrect.error", "resurrect.decrypt: " .. tostring(stderr))
+			wezterm.log_error("Decryption failed: " .. tostring(stderr))
 			return nil
 		end
+		if is_windows then
+			stdout = stdout:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
+		end
 		wezterm.emit("resurrect.decrypt.finished", file_path)
-		return result
-	end,
+		return stdout
+	end
 })
 ```
 
