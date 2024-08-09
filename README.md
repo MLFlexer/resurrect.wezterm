@@ -19,7 +19,7 @@ local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.
 > [!WARNING] 
 > 1.1 FOR WINDOWS USERS
 > 
-> You must ensure that there is write access to the directory where the state is stored, as such it is suggested that you set your own state direcory like so:
+> You must ensure that there is write access to the directory where the state is stored, as such it is suggested that you set your own state directory like so:
 > ```lua
 > resurrect.save_state_dir = "C:\\Users\\Admin\\Desktop\\state\\" -- Set some directory where wezterm has write access
 > ```
@@ -72,9 +72,6 @@ config.keys = {
 4. Optional: Enable `age` encryption (requires [age](https://github.com/FiloSottile/age) to be installed and available on your PATH):
 
 You can optionally configure the plugin to encrypt and decrypt the saved state.
-See [encryption doc](/encryption.md) for other encryption providers and configuration.
-> [!IMPORTANT]  
-> There is currently a problem with encrypting large states on Windows, see [#32](https://github.com/MLFlexer/resurrect.wezterm/issues/32).
 
 4.1. Install `age` and generate a key with:
 ```sh
@@ -93,36 +90,8 @@ resurrect.set_encryption({
 ```
 
  Currently, only `age` encryption is supported. Alternate implementations are possible by providing your own `encrypt` and `decrypt` functions:
-```lua
-resurrect.set_encryption({
-  enable = true,
-  private_key = "/path/to/private/key.txt",
-  public_key = "public_key",
-  encrypt = function(file_path, lines)
-    local success, stdout, stderr = wezterm.run_child_process({
-      os.getenv("SHELL"),
-      "-c",
-      -- command to encrypt
-    })
-    if not success then
-        wezterm.log_error(stderr)
-    end
-    wezterm.log_info(stdout)
-  end,
-  decrypt = function(file_path)
-    local success, stdout, stderr = wezterm.run_child_process({
-      os.getenv("SHELL"),
-      "-c",
-      -- command to decrypt
-    })
-    if not success then
-        wezterm.log_error(stderr)
-    else
-        return stdout
-    end
-  end,
-})
-```
+
+See [encryption doc](/encryption.md) for other encryption providers and configuration.
 
 ## How do I use it?
 I use the buildin `resurrect.periodic_save()` to save my workspaces every 15 minutes. This ensures that if I close Wezterm, then I can restore my session state to a state which is at most 15 minutes old.
@@ -166,6 +135,53 @@ This is used to format labels, ignore saved state, change the title and change t
 ### Change the directory to store the saved state
 ```lua
 resurrect.change_state_save_dir("/some/other/directory")
+```
+### Events
+This plugin emits the following events that you can use for your own callback functions:
+
+- `resurrect.decrypt.start(file_path)`
+- `resurrect.decrypt.finished(file_path)`
+- `resurrect.encrypt.start(file_path)`
+- `resurrect.encrypt.finished(file_path)`
+- `resurrect.error(err)`
+- `resurrect.load_state.start(name, type)`
+- `resurrect.load_state.finished(name, type)`
+- `resurrect.periodic_save`
+- `resurrect.sanitize_json.start(data)`
+- `resurrect.sanitize_json.finished(data)`
+- `resurrect.save_state.start(file_path)`
+- `esurrect.save_state.finished(file_path)`
+- `resurrect.tab_state.restore_tab.start`
+- `resurrect.tab_state.restore_tab.finished`
+- `resurrect.window_state.restore_window.start`
+- `resurrect.window_state.restore_window.finished`
+- `resurrect.workspace_state.restore_workspace.start`
+- `resurrect.workspace_state.restore_workspace.finished`
+
+Example: sending a toast notification when specified events occur, but suppress on `periodic_save()`:
+```lua
+local resurrect_event_listeners = {
+  "resurrect.error",
+  "resurrect.save_state.finished",
+}
+local is_periodic_save = false
+wezterm.on("resurrect.periodic_save", function()
+  is_periodic_save = true
+end)
+for _, event in ipairs(resurrect_event_listeners) do
+  wezterm.on(event, function(...)
+    if event == "resurrect.save_state.finished" and is_periodic_save then
+      is_periodic_save = false
+      return
+    end
+    local args = { ... }
+    local msg = event
+    for _, v in ipairs(args) do
+      msg = msg .. ' ' .. tostring(v)
+    end
+    wezterm.gui.gui_windows()[1]:toast_notification("Wezterm - resurrect", msg, nil, 4000)
+  end)
+end
 ```
 
 ## State files
@@ -242,6 +258,11 @@ end)
 ## FAQ
 ### Pane CWD is not correct on Windows
 If you pane CWD is incorrect then it might be a problem with the shell integration and OSC 7. See [Wezterm documentation](https://wezfurlong.org/wezterm/shell-integration.html).
+### How do I keep my plugins up to date?
+*Manually*  
+Wezterm git clones your plugins into a plugin directory. Enter `wezterm.plugin.list()` in the Wezterm Debug Overlay (`Ctrl + Shift + L`) to see where they are stored. You can then update them individually using git pull.
+*Automatically*  
+Add `wezterm.plugin.update_all()` to your Wezterm config.
 
 ## Contributions
 Suggestions, Issues and PRs are welcome! The features currently implemented are the ones I use the most, but your workflow might differ. As such, if you have any proposals on how to improve the plugin please feel free to make an issue or even better a PR!
@@ -252,4 +273,3 @@ Restoring of the panes are done via. the `pane_tree` file, which has functions t
 
 ## Disclaimer
 If you don't setup encryption then the state of your terminal is saved as plaintext json files. Please be aware that the plugin will by default write the output of the shell among other things, which could contain secrets or other vulnerable data. If you do not want to store this as plaintext, then please use the provided implementation for encrypting with [age](https://github.com/FiloSottile/age) or see [encryption docs](/encryption.md) for other ways to encrypt your state.
-
