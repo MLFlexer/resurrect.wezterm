@@ -60,6 +60,41 @@ local function get_file_path(file_name, type, opt_name)
 	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
 end
 
+---executes cmd and passes input to stdin
+---@param cmd string command to be run
+---@param input string input to stdin
+---@return boolean
+---@return string
+local function execute_cmd_with_stdin(cmd, input)
+	if #cmd < 32000 then -- if command in less than the max command length on windows
+		local process_args
+		if is_windows then
+			input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
+			cmd = string.format('Write-Output -NoEnumerate "%s" | %s', input, cmd)
+			process_args = { "pwsh.exe", "-NoProfile", "-Command", cmd }
+		else
+			cmd = string.format("printf '%s' | %s", input, cmd)
+			process_args = { os.getenv("SHELL"), "-c", cmd }
+		end
+
+		local success, stdout, stderr = wezterm.run_child_process(process_args)
+		if success then
+			return success, stdout
+		else
+			return success, stderr
+		end
+	else
+		local stdin = io.popen(cmd, "w")
+		if not stdin then
+			return false, "Failed to execute: " .. cmd
+		end
+		stdin:write(input)
+		stdin:flush()
+		stdin:close()
+		return true, '"' .. cmd .. '" <input> ran successfully.'
+	end
+end
+
 ---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string | nil}
 pub.encryption = {
 	enable = false,
@@ -67,42 +102,24 @@ pub.encryption = {
 	public_key = nil,
 	encrypt = function(file_path, lines)
 		local cmd = string.format('age -r %s -o "%s"', pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+		local success, output = execute_cmd_with_stdin(cmd, lines)
 
-		if is_windows then
-			lines = lines:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
-		end
-
-		local stdin = io.popen(cmd, "w")
-		if not stdin then
-			wezterm.log_error("Could not open command: " .. cmd)
+		if not success then
+			wezterm.log_error("Encryption failed: " .. output)
 			return
 		end
-		stdin:write(lines)
-		stdin:close()
 	end,
 	decrypt = function(file_path)
-		local cmd =
-			string.format('PATH=%s age -d -i "%s" "%s"', os.getenv("PATH"), pub.encryption.private_key, file_path)
-		if is_windows then
-			cmd = string.format(
-				'set PATH=%s && age -d -i "%s" "%s"',
-				os.getenv("PATH"),
-				pub.encryption.private_key,
-				file_path
-			)
-		end
-
-		local stdout = io.popen(cmd, "r")
-		if not stdout then
-			wezterm.log_error("Could not open command: " .. cmd)
+		local success, stdout, stderr =
+			wezterm.run_child_process({ "age", "-d", "-i", pub.encryption.private_key, file_path })
+		if not success then
+			wezterm.log_error("Decryption failed: " .. stderr)
 			return
 		end
-		local json_state = stdout:read("a")
-		stdout:close()
 		if is_windows then
-			json_state = json_state:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
+			stdout = stdout:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
 		end
-		return json_state
+		return stdout
 	end,
 }
 
