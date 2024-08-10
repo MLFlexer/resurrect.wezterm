@@ -317,4 +317,8 @@ pub.window_state = window_state
 local tab_state = require("resurrect.tab_state")
 pub.tab_state = tab_state
 
+function pub.set_max_nlines(max_nlines)
+	require("resurrect.pane_tree").max_nlines = max_nlines
+end
+
 return pub

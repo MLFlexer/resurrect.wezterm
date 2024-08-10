@@ -1,5 +1,9 @@
 local wezterm = require("wezterm")
+
+---@class pane_tree_module
+---@field max_nlines integer
 local pub = {}
+pub.max_nlines = 2000
 
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}
@@ -100,7 +104,11 @@ local function insert_panes(root, panes)
 	end
 	root.process = root.pane:get_foreground_process_name()
 	if pub.get_shell_process(root.process) then
-		root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
+		local nlines = root.pane:get_dimensions().scrollback_rows
+		if nlines > pub.max_nlines then
+			nlines = pub.max_nlines
+		end
+		root.text = root.pane:get_lines_as_escapes(nlines)
 	else
 		root.text = {}
 	end
