@@ -66,16 +66,20 @@ end
 ---@return boolean
 ---@return string
 local function execute_cmd_with_stdin(cmd, input)
-	if #input < 32000 then -- Check if input is larger than max cmd length on windows
-		local process_args
-		if is_windows then
-			input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
-			cmd = string.format('Write-Output -NoEnumerate "%s" | %s', input, cmd)
-			process_args = { "pwsh.exe", "-NoProfile", "-Command", cmd }
+	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
+		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
+		cmd = string.format('Write-Output -NoEnumerate "%s" | %s', input, cmd)
+		local process_args = { "pwsh.exe", "-NoProfile", "-Command", cmd }
+
+		local success, stdout, stderr = wezterm.run_child_process(process_args)
+		if success then
+			return success, stdout
 		else
-			cmd = string.format("printf '%s' | %s", input, cmd)
-			process_args = { os.getenv("SHELL"), "-c", cmd }
+			return success, stderr
 		end
+	elseif #input < 261000 and not is_windows then -- Check if input is larger than common max on MacOS and Linux
+		cmd = string.format("printf '%s' | %s", input, cmd)
+		local process_args = { os.getenv("SHELL"), "-c", cmd }
 
 		local success, stdout, stderr = wezterm.run_child_process(process_args)
 		if success then
