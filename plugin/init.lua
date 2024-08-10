@@ -66,7 +66,7 @@ end
 ---@return boolean
 ---@return string
 local function execute_cmd_with_stdin(cmd, input)
-	if #cmd < 32000 then -- if command in less than the max command length on windows
+	if #input < 32000 then -- Check if input is larger than max cmd length on windows
 		local process_args
 		if is_windows then
 			input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
@@ -101,7 +101,7 @@ pub.encryption = {
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local cmd = string.format('age -r %s -o "%s"', pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+		local cmd = string.format("age -r %s -o %s", pub.encryption.public_key, file_path:gsub(" ", "\\ "))
 		local success, output = execute_cmd_with_stdin(cmd, lines)
 
 		if not success then
