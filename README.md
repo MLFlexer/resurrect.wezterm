@@ -73,8 +73,6 @@ config.keys = {
 
 You can optionally configure the plugin to encrypt and decrypt the saved state.
 See [encryption doc](/encryption.md) for other encryption providers and configuration.
-> [!IMPORTANT]  
-> There is currently a problem with encrypting large states on Windows, see [#32](https://github.com/MLFlexer/resurrect.wezterm/issues/32).
 
 4.1. Install `age` and generate a key with:
 ```sh

@@ -60,16 +60,43 @@ local function get_file_path(file_name, type, opt_name)
 	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
 end
 
----executes command in the shell
----@param cmd string
+---executes cmd and passes input to stdin
+---@param cmd string command to be run
+---@param input string input to stdin
 ---@return boolean
 ---@return string
----@return string
-local function execute_shell_cmd(cmd)
-	local process_args = is_windows and { "pwsh.exe", "-NoProfile", "-Command", cmd } or
-		{ os.getenv("SHELL"), "-c", cmd }
-	local success, stdout, stderr = wezterm.run_child_process(process_args)
-	return success, stdout, stderr
+local function execute_cmd_with_stdin(cmd, input)
+	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
+		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
+		cmd = string.format('Write-Output -NoEnumerate "%s" | %s', input, cmd)
+		local process_args = { "pwsh.exe", "-NoProfile", "-Command", cmd }
+
+		local success, stdout, stderr = wezterm.run_child_process(process_args)
+		if success then
+			return success, stdout
+		else
+			return success, stderr
+		end
+	elseif #input < 261000 and not is_windows then -- Check if input is larger than common max on MacOS and Linux
+		cmd = string.format("printf '%s' | %s", input, cmd)
+		local process_args = { os.getenv("SHELL"), "-c", cmd }
+
+		local success, stdout, stderr = wezterm.run_child_process(process_args)
+		if success then
+			return success, stdout
+		else
+			return success, stderr
+		end
+	else
+		local stdin = io.popen(cmd, "w")
+		if not stdin then
+			return false, "Failed to execute: " .. cmd
+		end
+		stdin:write(input)
+		stdin:flush()
+		stdin:close()
+		return true, '"' .. cmd .. '" <input> ran successfully.'
+	end
 end
 
 ---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string | nil}
@@ -78,44 +105,25 @@ pub.encryption = {
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local cmd =
-			string.format("printf '%s' | age -r %s -o %s", lines, pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+		local cmd = string.format("age -r %s -o %s", pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+		local success, output = execute_cmd_with_stdin(cmd, lines)
 
-		if is_windows then
-			lines = lines:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
-			cmd = string.format(
-				"Write-Output -NoEnumerate \"%s\" | age -r %s -o \"%s\"",
-				lines,
-				pub.encryption.public_key,
-				file_path
-			)
-		end
-		local success, _, stderr = execute_shell_cmd(cmd)
-		-- TODO: update with toast when implemented
 		if not success then
-			wezterm.log_error(stderr)
+			wezterm.log_error("Encryption failed: " .. output)
+			return
 		end
 	end,
 	decrypt = function(file_path)
-		local cmd = string.format("age -d -i '%s' '%s'", pub.encryption.private_key, file_path)
-		if is_windows then
-			cmd = string.format(
-				"age -d -i \"%s\" \"%s\"",
-				pub.encryption.private_key,
-				file_path
-			)
-		end
 		local success, stdout, stderr =
-			execute_shell_cmd(cmd)
-		-- TODO: update with toast when implemented
+			wezterm.run_child_process({ "age", "-d", "-i", pub.encryption.private_key, file_path })
 		if not success then
-			wezterm.log_error(stderr)
-		else
-			if is_windows then
-				stdout = stdout:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
-			end
-			return stdout
+			wezterm.log_error("Decryption failed: " .. stderr)
+			return
 		end
+		if is_windows then
+			stdout = stdout:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
+		end
+		return stdout
 	end,
 }
 
