@@ -82,6 +82,11 @@ resurrect.set_encryption({
 })
 ```
 
+> [!WARNING] 
+> FOR WINDOWS USERS
+> 
+> Due to Windows limitations with `stdin`, errors cannot be returned from the `encrypt` function. 
+
  Currently, only `age` encryption is supported. Alternate implementations are possible by providing your own `encrypt` and `decrypt` functions:
 ```lua
 resurrect.set_encryption({
