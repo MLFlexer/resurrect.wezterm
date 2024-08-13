@@ -114,17 +114,25 @@ local function execute_cmd_with_stdin(cmd, input)
 	end
 end
 
----@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string): (boolean, string), decrypt: fun(file_path: string): (boolean, string, string)}
+---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string}
 pub.encryption = {
 	enable = false,
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
 		local cmd = string.format("age -r %s -o %s", pub.encryption.public_key, file_path:gsub(" ", "\\ "))
-		return execute_cmd_with_stdin(cmd, lines)
+		local success, output = execute_cmd_with_stdin(cmd, lines)
+		if not success then
+			error("Encryption failed:" .. output)
+		end
 	end,
 	decrypt = function(file_path)
-		return wezterm.run_child_process({ "age", "-d", "-i", pub.encryption.private_key, file_path })
+		local success, stdout, stderr = wezterm.run_child_process({ "age", "-d", "-i", pub.encryption.private_key,
+			file_path })
+		if not success then
+			error("Decryption failed: " .. stderr)
+		end
+		return stdout
 	end,
 }
 
@@ -171,10 +179,10 @@ local function write_state(file_path, state)
 	json_state = sanitize_json(json_state)
 	if pub.encryption.enable then
 		wezterm.emit("resurrect.encrypt.start", file_path)
-		local success, output = pub.encryption.encrypt(file_path, json_state)
-		if not success then
-			wezterm.emit("resurrect.error", "Encryption failed: " .. output)
-			wezterm.log_error("Encryption failed: " .. output)
+		local ok, err = pcall(function() return pub.encryption.encrypt(file_path, json_state) end)
+		if not ok then
+			wezterm.emit("resurrect.error", "Encryption failed: " .. err)
+			wezterm.log_error("Encryption failed: " .. err)
 		else
 			wezterm.emit("resurrect.encrypt.finished", file_path)
 		end
@@ -198,12 +206,12 @@ local function load_json(file_path)
 	local json
 	if pub.encryption.enable then
 		wezterm.emit("resurrect.decrypt.start", file_path)
-		local success, stderr
-		success, json, stderr = pub.encryption.decrypt(file_path)
-		if not success then
-			wezterm.emit("resurrect.error", "Decryption failed: " .. stderr)
-			wezterm.log_error("Decryption failed: " .. stderr)
+		local ok, output = pcall(function() return pub.encryption.decrypt(file_path) end)
+		if not ok then
+			wezterm.emit("resurrect.error", "Decryption failed: " .. tostring(output))
+			wezterm.log_error("Decryption failed: " .. tostring(output))
 		else
+			json = output
 			if is_windows then
 				json = json:gsub('`"', '"'):gsub("`n", "\n"):gsub("`r", "\r")
 			end
@@ -239,6 +247,7 @@ end
 ---Reads a file with the state
 ---@param name string
 ---@param type string
+---@return table
 function pub.load_state(name, type)
 	wezterm.emit("resurrect.load_state.start", name, type)
 	local json = load_json(get_file_path(name, type))
