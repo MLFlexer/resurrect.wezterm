@@ -66,8 +66,13 @@ end
 ---@return boolean
 ---@return string
 local function execute_cmd_with_stdin(cmd, input)
-	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
+	if is_windows then
 		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
+	else
+		input = input:gsub("\\", "\\\\"):gsub('"', '\"'):gsub("\n", "\\n"):gsub("\r", "\\r")
+	end
+
+	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
 		cmd = string.format('Write-Output -NoEnumerate "%s" | %s', input, cmd)
 		local process_args = { "pwsh.exe", "-NoProfile", "-Command", cmd }
 
