@@ -8,7 +8,7 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 * Restore shell output from a saved session.
 * Save the state of your current window, with every window, tab and pane state stored in a `json` file.
 * Restore the save from a `json` file.
-* Optionally enable [age](https://github.com/FiloSottile/age) encryption and decryption of the saved state.
+* Optionally enable encryption and decryption of the saved state.
 
 ## Setup example
 1. Require the plugin:
@@ -62,9 +62,8 @@ config.keys = {
 }
 ```
 
-4. Optional: Enable `age` encryption (requires [age](https://github.com/FiloSottile/age) to be installed and available on your PATH):
-You can optionally configure the plugin to encrypt and decrypt the saved state.
-See [encryption doc](/encryption.md) for other encryption providers and configuration.
+4. Optional, enable encryption (recommended):
+You can optionally configure the plugin to encrypt and decrypt the saved state. [age](https://github.com/FiloSottile/age) is the default encryption provider. [Rage](https://github.com/str4d/rage) and [GnuPG](https://gnupg.org/) encryption are also supported.
 
 4.1. Install `age` and generate a key with:
 ```sh
@@ -72,12 +71,16 @@ $ age-keygen -o key.txt
 Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
 ```
 
+> [!NOTE]
+> If you prefer to use [GnuPG](https://gnupg.org/), generate a key pair: `gpg --full-generate-key`. Get the public key with `gpg --armor --export your_email@example.com`.
+
 4.2. Enable encryption in your Wezterm config:
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 resurrect.set_encryption({
   enable = true,
-  private_key = "/path/to/private/key.txt",
+  method = "age" -- "age" is the default encryption method, but you can also specify "rage" or "gpg"
+  private_key = "/path/to/private/key.txt", -- if using "gpg", you can omit this
   public_key = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
 })
 ```
@@ -87,37 +90,41 @@ resurrect.set_encryption({
 > 
 > Due to Windows limitations with `stdin`, errors cannot be returned from the `encrypt` function. 
 
- Currently, only `age` encryption is supported. Alternate implementations are possible by providing your own `encrypt` and `decrypt` functions:
+> [!TIP]
+> If the encryption provider is not found in your PATH (common issue for GUI apps on Mac OS), you can specify the absolute path to the executable.
+> e.g. `method = "/opt/homebrew/bin/age"`
+
+Alternate implementations are possible by providing your own `encrypt` and `decrypt` functions:
 ```lua
 resurrect.set_encryption({
   enable = true,
   private_key = "/path/to/private/key.txt",
   public_key = "public_key",
   encrypt = function(file_path, lines)
-    local success, stdout, stderr = wezterm.run_child_process({
-      os.getenv("SHELL"),
-      "-c",
-      -- command to encrypt
-    })
+    -- substitute for your encryption command
+    local cmd = string.format("%s -r %s -o %s", pub.encryption.method, pub.encryption.public_key,
+      file_path:gsub(" ", "\\ "))
+
+    local success, output = execute_cmd_with_stdin(cmd, lines)
     if not success then
-        wezterm.log_error(stderr)
+      error("Encryption failed:" .. output)
     end
-    wezterm.log_info(stdout)
   end,
   decrypt = function(file_path)
-    local success, stdout, stderr = wezterm.run_child_process({
-      os.getenv("SHELL"),
-      "-c",
-      -- command to decrypt
-    })
+    -- substitute for your decryption command
+    local cmd = { pub.encryption.method, "-d", "-i", pub.encryption.private_key, file_path }
+
+    local success, stdout, stderr = wezterm.run_child_process(cmd)
     if not success then
-        wezterm.log_error(stderr)
-    else
-        return stdout
+      error("Decryption failed: " .. stderr)
     end
+
+    return stdout
   end,
 })
 ```
+
+If you wish to share a non-documented way of encrypting your files or think something is missing, then please make a PR or file an issue.
 
 ## How do I use it?
 I use the builtin `resurrect.periodic_save()` to save my workspaces every 15 minutes. This ensures that if I close Wezterm, then I can restore my session state to a state which is at most 15 minutes old.
@@ -305,7 +312,5 @@ Suggestions, Issues and PRs are welcome! The features currently implemented are 
 ### Technical details
 Restoring of the panes are done via. the `pane_tree` file, which has functions to work on a binary-like-tree of the panes. Each node in the pane_tree represents a possible split pane. If the pane has a `bottom` and/or `right` child, then the pane is split. If you have any questions to the implementation, then I suggest you read the code or open an issue and I will try to clarify. Improvements to this section is also very much welcome.
 
-
 ## Disclaimer
-If you don't setup encryption then the state of your terminal is saved as plaintext json files. Please be aware that the plugin will by default write the output of the shell among other things, which could contain secrets or other vulnerable data. If you do not want to store this as plaintext, then please use the provided implementation for encrypting with [age](https://github.com/FiloSottile/age) or see [encryption docs](/encryption.md) for other ways to encrypt your state.
-
+If you don't setup encryption then the state of your terminal is saved as plaintext json files. Please be aware that the plugin will by default write the output of the shell among other things, which could contain secrets or other vulnerable data. If you do not want to store this as plaintext, then please use the provided documentation for encrypting state.

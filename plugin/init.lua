@@ -119,24 +119,39 @@ local function execute_cmd_with_stdin(cmd, input)
 	end
 end
 
----@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string}
+---@alias encryption_opts {enable: boolean, method: string, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string}
 pub.encryption = {
 	enable = false,
+	method = "age",
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local cmd = string.format("age -r %s -o %s", pub.encryption.public_key, file_path:gsub(" ", "\\ "))
+		local cmd = string.format("%s -r %s -o %s", pub.encryption.method, pub.encryption.public_key,
+			file_path:gsub(" ", "\\ "))
+
+		if pub.encryption.method:find("gpg") then
+			cmd = string.format("%s --batch --yes --encrypt --recipient %s --output %s", pub.encryption.method,
+				pub.encryption.public_key,
+				file_path:gsub(" ", "\\ "))
+		end
+
 		local success, output = execute_cmd_with_stdin(cmd, lines)
 		if not success then
 			error("Encryption failed:" .. output)
 		end
 	end,
 	decrypt = function(file_path)
-		local success, stdout, stderr = wezterm.run_child_process({ "age", "-d", "-i", pub.encryption.private_key,
-			file_path })
+		local cmd = { pub.encryption.method, "-d", "-i", pub.encryption.private_key, file_path }
+
+		if pub.encryption.method:find("gpg") then
+			cmd = { pub.encryption.method, "--batch", "--yes", "--decrypt", file_path }
+		end
+
+		local success, stdout, stderr = wezterm.run_child_process(cmd)
 		if not success then
 			error("Decryption failed: " .. stderr)
 		end
+
 		return stdout
 	end,
 }
