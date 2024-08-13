@@ -1,3 +1,4 @@
+local wezterm = require("wezterm")
 local tab_state_mod = require("resurrect.tab_state")
 local pub = {}
 
@@ -27,6 +28,7 @@ end
 ---@param window MuxWindow
 ---@param opts? restore_opts
 function pub.restore_window(window, window_state, opts)
+	wezterm.emit("resurrect.window_state.restore_window.start")
 	if opts then
 	else
 		opts = {}
@@ -53,6 +55,7 @@ function pub.restore_window(window, window_state, opts)
 	end
 
 	active_tab:activate()
+	wezterm.emit("resurrect.window_state.restore_window.finished")
 end
 
 return pub

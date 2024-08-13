@@ -16,13 +16,6 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 ```
-> [!WARNING] 
-> 1.1 FOR WINDOWS USERS
-> 
-> You must ensure that there is write access to the directory where the state is stored, as such it is suggested that you set your own state direcory like so:
-> ```lua
-> resurrect.save_state_dir = "C:\\Users\\Admin\\Desktop\\state\\" -- Set some directory where wezterm has write access
-> ```
 
 2. Saving workspace state:
 ```lua
@@ -70,7 +63,6 @@ config.keys = {
 ```
 
 4. Optional: Enable `age` encryption (requires [age](https://github.com/FiloSottile/age) to be installed and available on your PATH):
-
 You can optionally configure the plugin to encrypt and decrypt the saved state.
 See [encryption doc](/encryption.md) for other encryption providers and configuration.
 
@@ -89,6 +81,11 @@ resurrect.set_encryption({
   public_key = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
 })
 ```
+
+> [!WARNING] 
+> FOR WINDOWS USERS
+> 
+> Due to Windows limitations with `stdin`, errors cannot be returned from the `encrypt` function. 
 
  Currently, only `age` encryption is supported. Alternate implementations are possible by providing your own `encrypt` and `decrypt` functions:
 ```lua
@@ -123,8 +120,7 @@ resurrect.set_encryption({
 ```
 
 ## How do I use it?
-I use the buildin `resurrect.periodic_save()` to save my workspaces every 15 minutes. This ensures that if I close Wezterm, then I can restore my session state to a state which is at most 15 minutes old.
-
+I use the builtin `resurrect.periodic_save()` to save my workspaces every 15 minutes. This ensures that if I close Wezterm, then I can restore my session state to a state which is at most 15 minutes old.
 
 I also use it to restore the state of my workspaces. As I use the plugin [smart_workspace_switcher.wezterm](https://github.com/MLFlexer/smart_workspace_switcher.wezterm), to change workspaces whenever I change "project" (git repository).
 I have added the following to my configuration to be able to do this whenever I change workspaces:
@@ -164,6 +160,60 @@ This is used to format labels, ignore saved state, change the title and change t
 ### Change the directory to store the saved state
 ```lua
 resurrect.change_state_save_dir("/some/other/directory")
+```
+> [!WARNING] 
+> FOR WINDOWS USERS
+> 
+> You must ensure that there is write access to the directory where the state is stored, as such it is suggested that you set your own state directory like so:
+> ```lua
+> resurrect.save_state_dir = "C:\\Users\\Admin\\Desktop\\state\\" -- Set some directory where wezterm has write access
+> ```
+### Events
+This plugin emits the following events that you can use for your own callback functions:
+
+- `resurrect.decrypt.start(file_path)`
+- `resurrect.decrypt.finished(file_path)`
+- `resurrect.encrypt.start(file_path)`
+- `resurrect.encrypt.finished(file_path)`
+- `resurrect.error(err)`
+- `resurrect.load_state.start(name, type)`
+- `resurrect.load_state.finished(name, type)`
+- `resurrect.periodic_save`
+- `resurrect.sanitize_json.start(data)`
+- `resurrect.sanitize_json.finished(data)`
+- `resurrect.save_state.start(file_path)`
+- `resurrect.save_state.finished(file_path)`
+- `resurrect.tab_state.restore_tab.start`
+- `resurrect.tab_state.restore_tab.finished`
+- `resurrect.window_state.restore_window.start`
+- `resurrect.window_state.restore_window.finished`
+- `resurrect.workspace_state.restore_workspace.start`
+- `resurrect.workspace_state.restore_workspace.finished`
+
+Example: sending a toast notification when specified events occur, but suppress on `periodic_save()`:
+```lua
+local resurrect_event_listeners = {
+  "resurrect.error",
+  "resurrect.save_state.finished",
+}
+local is_periodic_save = false
+wezterm.on("resurrect.periodic_save", function()
+  is_periodic_save = true
+end)
+for _, event in ipairs(resurrect_event_listeners) do
+  wezterm.on(event, function(...)
+    if event == "resurrect.save_state.finished" and is_periodic_save then
+      is_periodic_save = false
+      return
+    end
+    local args = { ... }
+    local msg = event
+    for _, v in ipairs(args) do
+      msg = msg .. " " .. tostring(v)
+    end
+    wezterm.gui.gui_windows()[1]:toast_notification("Wezterm - resurrect", msg, nil, 4000)
+  end)
+end
 ```
 
 ## State files
@@ -210,21 +260,21 @@ State files are json files, which will be decoded into lua tables. This can be u
 
 If you would like to add entries in your Wezterm command palette for renaming and switching workspaces:
 ```lua
-local workspace_switcher = wezterm.plugin.require 'https://github.com/MLFlexer/smart_workspace_switcher.wezterm'
+local workspace_switcher = wezterm.plugin.require("https://github.com/MLFlexer/smart_workspace_switcher.wezterm")
 
-wezterm.on('augment-command-palette', function(window, pane)
+wezterm.on("augment-command-palette", function(window, pane)
   local workspace_state = resurrect.workspace_state
   return {
     {
-      brief = 'Window | Workspace: Switch Workspace',
-      icon = 'md_briefcase_arrow_up_down',
+      brief = "Window | Workspace: Switch Workspace",
+      icon = "md_briefcase_arrow_up_down",
       action = workspace_switcher.switch_workspace(),
     },
     {
-      brief = 'Window | Workspace: Rename Workspace',
-      icon = 'md_briefcase_edit',
+      brief = "Window | Workspace: Rename Workspace",
+      icon = "md_briefcase_edit",
       action = wezterm.action.PromptInputLine {
-        description = 'Enter new name for workspace',
+        description = "Enter new name for workspace",
         action = wezterm.action_callback(function(window, pane, line)
           if line then
             wezterm.mux.rename_workspace(wezterm.mux.get_active_workspace(), line)
@@ -239,7 +289,15 @@ end)
 
 ## FAQ
 ### Pane CWD is not correct on Windows
-If you pane CWD is incorrect then it might be a problem with the shell integration and OSC 7. See [Wezterm documentation](https://wezfurlong.org/wezterm/shell-integration.html).
+If your pane CWD is incorrect then it might be a problem with the shell integration and OSC 7. See [Wezterm documentation](https://wezfurlong.org/wezterm/shell-integration.html).
+### How do I keep my plugins up to date?
+*Manually*
+
+Wezterm git clones your plugins into a plugin directory. Enter `wezterm.plugin.list()` in the Wezterm Debug Overlay (`Ctrl + Shift + L`) to see where they are stored. You can then update them individually using git pull.
+
+*Automatically*
+
+Add `wezterm.plugin.update_all()` to your Wezterm config.
 
 ## Contributions
 Suggestions, Issues and PRs are welcome! The features currently implemented are the ones I use the most, but your workflow might differ. As such, if you have any proposals on how to improve the plugin please feel free to make an issue or even better a PR!

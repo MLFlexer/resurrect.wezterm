@@ -1,3 +1,4 @@
+local wezterm = require("wezterm")
 local pane_tree_mod = require("resurrect.pane_tree")
 local pub = {}
 
@@ -81,6 +82,7 @@ end
 ---@param pane_tree pane_tree
 ---@param opts restore_opts
 function pub.restore_tab(tab, pane_tree, opts)
+	wezterm.emit("resurrect.tab_state.restore_tab.start")
 	if opts.pane then
 		pane_tree.pane = opts.pane
 	else
@@ -89,6 +91,7 @@ function pub.restore_tab(tab, pane_tree, opts)
 
 	local acc = pane_tree_mod.fold(pane_tree, { is_zoomed = false }, make_splits(opts))
 	acc.active_pane:activate()
+	wezterm.emit("resurrect.tab_state.restore_tab.finished")
 end
 
 function pub.default_on_pane_restore(pane_tree)

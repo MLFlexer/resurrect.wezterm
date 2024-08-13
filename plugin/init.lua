@@ -66,8 +66,13 @@ end
 ---@return boolean
 ---@return string
 local function execute_cmd_with_stdin(cmd, input)
-	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
+	if is_windows then
 		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
+	else
+		input = input:gsub("\\", "\\\\"):gsub('"', '\"'):gsub("\n", "\\n"):gsub("\r", "\\r")
+	end
+
+	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
 		cmd = string.format('Write-Output -NoEnumerate "%s" | %s', input, cmd)
 		local process_args = { "pwsh.exe", "-NoProfile", "-Command", cmd }
 
@@ -88,6 +93,21 @@ local function execute_cmd_with_stdin(cmd, input)
 			return success, stderr
 		end
 	else
+		-- redirect stderr to stdout to test if cmd will execute
+		-- can't check on Windows because it doesn't support /dev/stdin
+		if not is_windows then
+			local stdout = io.popen(cmd .. " 2>&1", "r")
+			if not stdout then
+				return false, "Failed to execute: " .. cmd
+			end
+			local stderr = stdout:read("*all")
+			stdout:close()
+			if stderr ~= "" then
+				wezterm.log_error(stderr)
+				return false, stderr
+			end
+		end
+		-- if no errors, execute cmd using stdin with input
 		local stdin = io.popen(cmd, "w")
 		if not stdin then
 			return false, "Failed to execute: " .. cmd
@@ -99,7 +119,7 @@ local function execute_cmd_with_stdin(cmd, input)
 	end
 end
 
----@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string | nil}
+---@alias encryption_opts {enable: boolean, private_key: string | nil, public_key: string | nil, encrypt: fun(file_path: string, lines: string), decrypt: fun(file_path: string): string}
 pub.encryption = {
 	enable = false,
 	private_key = nil,
@@ -107,21 +127,15 @@ pub.encryption = {
 	encrypt = function(file_path, lines)
 		local cmd = string.format("age -r %s -o %s", pub.encryption.public_key, file_path:gsub(" ", "\\ "))
 		local success, output = execute_cmd_with_stdin(cmd, lines)
-
 		if not success then
-			wezterm.log_error("Encryption failed: " .. output)
-			return
+			error("Encryption failed:" .. output)
 		end
 	end,
 	decrypt = function(file_path)
-		local success, stdout, stderr =
-			wezterm.run_child_process({ "age", "-d", "-i", pub.encryption.private_key, file_path })
+		local success, stdout, stderr = wezterm.run_child_process({ "age", "-d", "-i", pub.encryption.private_key,
+			file_path })
 		if not success then
-			wezterm.log_error("Decryption failed: " .. stderr)
-			return
-		end
-		if is_windows then
-			stdout = stdout:gsub('`"', '"'):gsub("\\\\", "\\"):gsub("`n", "\n"):gsub("`r", "\r")
+			error("Decryption failed: " .. stderr)
 		end
 		return stdout
 	end,
@@ -141,9 +155,10 @@ end
 --- @param data string
 --- @return string
 local function sanitize_json(data)
+	wezterm.emit("resurrect.sanitize_json.start", data)
 	data = data:gsub("[\x00-\x1F\x7F]", function(c)
+		local byte = string.byte(c)
 		if is_windows then
-			local byte = string.byte(c)
 			if byte == 0x0A then
 				return "\n"
 			elseif byte == 0x0D then
@@ -151,35 +166,62 @@ local function sanitize_json(data)
 			elseif byte == 0x09 then
 				return "\t"
 			else
-				return string.format("\\u%04X", string.byte(c))
+				return string.format("\\u%04X", byte)
 			end
 		else
-			return string.format("\\u00%02X", string.byte(c))
+			return string.format("\\u00%02X", byte)
 		end
 	end)
+	wezterm.emit("resurrect.sanitize_json.finished")
 	return data
 end
 
 ---@param file_path string
 ---@param state table
 local function write_state(file_path, state)
+	wezterm.emit("resurrect.save_state.start", file_path)
 	local json_state = wezterm.json_encode(state)
 	json_state = sanitize_json(json_state)
 	if pub.encryption.enable then
-		pub.encryption.encrypt(file_path, json_state)
+		wezterm.emit("resurrect.encrypt.start", file_path)
+		local ok, err = pcall(function() return pub.encryption.encrypt(file_path, json_state) end)
+		if not ok then
+			wezterm.emit("resurrect.error", "Encryption failed: " .. err)
+			wezterm.log_error("Encryption failed: " .. err)
+		else
+			wezterm.emit("resurrect.encrypt.finished", file_path)
+		end
 	else
-		local file = assert(io.open(file_path, "w"))
-		file:write(json_state)
-		file:close()
+		local ok, err = pcall(function()
+			local file = assert(io.open(file_path, "w"))
+			file:write(json_state)
+			file:close()
+		end)
+		if not ok then
+			wezterm.emit("resurrect.error", "Failed to write state: " .. err)
+			wezterm.log_error("Failed to write state: " .. err)
+		end
 	end
+	wezterm.emit("resurrect.save_state.finished", file_path)
 end
 
 ---@param file_path string
----@return table
+---@return table|nil
 local function load_json(file_path)
 	local json
 	if pub.encryption.enable then
-		json = pub.encryption.decrypt(file_path)
+		wezterm.emit("resurrect.decrypt.start", file_path)
+		local ok, output = pcall(function() return pub.encryption.decrypt(file_path) end)
+		if not ok then
+			wezterm.emit("resurrect.error", "Decryption failed: " .. tostring(output))
+			wezterm.log_error("Decryption failed: " .. tostring(output))
+		else
+			json = output
+			if is_windows then
+				json = json:gsub('`"', '"'):gsub("`n", "\n"):gsub("`r", "\r")
+			end
+			wezterm.emit("resurrect.decrypt.finished", file_path)
+		end
 	else
 		local lines = {}
 		for line in io.lines(file_path) do
@@ -188,7 +230,7 @@ local function load_json(file_path)
 		json = table.concat(lines)
 	end
 	if not json then
-		return {}
+		return nil
 	end
 	json = sanitize_json(json)
 	return wezterm.json_parse(json)
@@ -210,8 +252,16 @@ end
 ---Reads a file with the state
 ---@param name string
 ---@param type string
+---@return table
 function pub.load_state(name, type)
-	return load_json(get_file_path(name, type))
+	wezterm.emit("resurrect.load_state.start", name, type)
+	local json = load_json(get_file_path(name, type))
+	if not json then
+		wezterm.emit("resurrect.error", "Invalid json: " .. get_file_path(name, type))
+		return {}
+	end
+	wezterm.emit("resurrect.load_state.finished", name, type)
+	return json
 end
 
 ---Saves the stater after interval in seconds
@@ -221,6 +271,7 @@ function pub.periodic_save(interval_seconds)
 		interval_seconds = 60 * 15
 	end
 	wezterm.time.call_after(interval_seconds, function()
+		wezterm.emit("resurrect.periodic_save")
 		local workspace_state = require("resurrect.workspace_state")
 		pub.save_state(workspace_state.get_workspace_state())
 		pub.periodic_save(interval_seconds)
