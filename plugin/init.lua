@@ -175,11 +175,11 @@ local function sanitize_json(data)
 		local byte = string.byte(c)
 		if is_windows then
 			if byte == 0x0A then
-				return "\n"
+				return "\\n"
 			elseif byte == 0x0D then
-				return "\r"
+				return "\\r"
 			elseif byte == 0x09 then
-				return "\t"
+				return "\\t"
 			else
 				return string.format("\\u%04X", byte)
 			end
@@ -233,7 +233,7 @@ local function load_json(file_path)
 		else
 			json = output
 			if is_windows then
-				json = json:gsub('`"', '"'):gsub("`n", "\n"):gsub("`r", "\r")
+				json = json:gsub("\\\\", "\\"):gsub('`"', '"'):gsub("`n", "\n"):gsub("`r", "\r")
 			end
 			wezterm.emit("resurrect.decrypt.finished", file_path)
 		end
