@@ -68,7 +68,7 @@ end
 ---@param process string
 ---@return string?
 function pub.get_shell_process(process)
-	if process == "" then
+	if not process or process == "" then
 		return nil
 	end
 	process = process:match("^.*[/\\](.+)$")
