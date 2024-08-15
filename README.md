@@ -244,7 +244,7 @@ State files are json files, which will be decoded into lua tables. This can be u
                   "pixel_height":1000,
                   "pixel_width":1910,
                   "process":"/bin/bash", -- value is empty if attached to a remote domain
-                  "text":"Some text",
+                  "text":"Some text", -- not available if attached to a remote domain
                   "top":0,
                   "width":191
                },
