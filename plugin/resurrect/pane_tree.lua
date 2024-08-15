@@ -68,9 +68,6 @@ end
 ---@param process string
 ---@return string?
 function pub.get_shell_process(process)
-	if not process or process == "" then
-		return nil
-	end
 	process = process:match("^.*[/\\](.+)$")
 	if process == "bash" then
 		return process
@@ -98,8 +95,9 @@ local function insert_panes(root, panes)
 	end
 
 	local domain = root.pane:get_domain_name()
-	if not string.sub(domain, 1, 3) == "SSH" or not domain == "local" then
-		wezterm.log_warn("Unknown domain: " .. domain)
+	if not wezterm.mux.get_domain(domain):is_spawnable() then
+		wezterm.log_warn("Domain " .. domain .. " is not spawnable")
+		wezterm.emit("resurrect.error", "Domain " .. domain .. " is not spawnable")
 	else
 		if not root.pane:get_current_working_dir() then
 			root.cwd = ""
@@ -112,9 +110,16 @@ local function insert_panes(root, panes)
 
 		if string.sub(domain, 1, 3) == "SSH" then
 			root.domain = domain
+			-- we cannot get process information or lines from SSH domains
+			-- see https://wezfurlong.org/wezterm/config/lua/pane/get_foreground_process_name.html
 			root.process = ""
 			root.text = {}
 		else
+			if domain ~= "local" then
+				-- TODO: handle WSL and TLS domains
+				wezterm.log_warn("Domain " .. domain .. " is not currently supported by resurrect.wezterm")
+				wezterm.emit("resurrect.error", "Domain " .. domain .. " is not currently supported by resurrect.wezterm")
+			end
 			root.process = root.pane:get_foreground_process_name()
 			if pub.get_shell_process(root.process) then
 				root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
