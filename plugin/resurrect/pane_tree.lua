@@ -3,7 +3,7 @@ local pub = {}
 
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}
----@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string[], cwd: string, process: string, pane: Pane?, is_active: boolean, is_zoomed: boolean}
+---@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string[], cwd: string, domain?: string, process: string, pane: Pane?, is_active: boolean, is_zoomed: boolean}
 
 --- checks if the user is on windows
 local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
@@ -68,6 +68,9 @@ end
 ---@param process string
 ---@return string?
 function pub.get_shell_process(process)
+	if process == "" then
+		return nil
+	end
 	process = process:match("^.*[/\\](.+)$")
 	if process == "bash" then
 		return process
@@ -94,16 +97,33 @@ local function insert_panes(root, panes)
 		return nil
 	end
 
-	root.cwd = root.pane:get_current_working_dir().file_path
-	if is_windows then
-		root.cwd = root.cwd:gsub("^/([a-zA-Z]):", "%1:")
-	end
-	root.process = root.pane:get_foreground_process_name()
-	if pub.get_shell_process(root.process) then
-		root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
+	local domain = root.pane:get_domain_name()
+	if not string.sub(domain, 1, 3) == "SSH" or not domain == "local" then
+		wezterm.log_warn("Unknown domain: " .. domain)
 	else
-		root.text = {}
+		if not root.pane:get_current_working_dir() then
+			root.cwd = ""
+		else
+			root.cwd = root.pane:get_current_working_dir().file_path
+		end
+		if is_windows then
+			root.cwd = root.cwd:gsub("^/([a-zA-Z]):", "%1:")
+		end
+
+		if string.sub(domain, 1, 3) == "SSH" then
+			root.domain = domain
+			root.process = ""
+			root.text = {}
+		else
+			root.process = root.pane:get_foreground_process_name()
+			if pub.get_shell_process(root.process) then
+				root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
+			else
+				root.text = {}
+			end
+		end
 	end
+
 	root.pane = nil
 
 	if #panes == 0 then
