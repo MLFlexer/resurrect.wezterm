@@ -3,7 +3,7 @@ local wezterm = require("wezterm")
 ---@class pane_tree_module
 ---@field max_nlines integer
 local pub = {}
-pub.max_nlines = 1000
+pub.max_nlines = 3500
 
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}

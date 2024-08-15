@@ -153,7 +153,7 @@ You can checkout my configuration [here](https://github.com/MLFlexer/.dotfiles/t
 ### Periodic saving of state
 `resurrect.periodic_save(interval_seconds?)` will save the workspace state every 15 minutes or `interval_seconds` if supplied.
 ### Limiting the amount of output lines saved for a pane
-`resurrect.set_max_nlines(number)` will limit each pane to save at most `number` lines to the state. This can improve saving and loading state.
+`resurrect.set_max_nlines(number)` will limit each pane to save at most `number` lines to the state. This can improve performance when saving and loading state.
 ### save_state options
 `resurrect.save_state(state, opt_name?)` takes an optional string argument, which will rename the file to the name of the string.
 ### fuzzy_load opts
