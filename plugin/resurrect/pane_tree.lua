@@ -117,8 +117,13 @@ local function insert_panes(root, panes)
 		else
 			if domain ~= "local" then
 				-- TODO: handle WSL, UNIX and TLS domains
-				wezterm.log_warn("Domain " .. domain .. " is not currently supported by resurrect.wezterm")
-				wezterm.emit("resurrect.error", "Domain " .. domain .. " is not currently supported by resurrect.wezterm")
+				wezterm.log_warn("Domain " ..
+				domain ..
+				" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
+				wezterm.emit("resurrect.error",
+					"Domain " ..
+					domain ..
+					" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
 			end
 			root.process = root.pane:get_foreground_process_name()
 			if pub.get_shell_process(root.process) then
