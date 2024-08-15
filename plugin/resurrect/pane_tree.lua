@@ -116,7 +116,7 @@ local function insert_panes(root, panes)
 			root.text = {}
 		else
 			if domain ~= "local" then
-				-- TODO: handle WSL and TLS domains
+				-- TODO: handle WSL, UNIX and TLS domains
 				wezterm.log_warn("Domain " .. domain .. " is not currently supported by resurrect.wezterm")
 				wezterm.emit("resurrect.error", "Domain " .. domain .. " is not currently supported by resurrect.wezterm")
 			end
