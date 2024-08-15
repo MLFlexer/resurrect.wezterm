@@ -105,9 +105,9 @@ local function insert_panes(root, panes)
 			root.cwd = ""
 		else
 			root.cwd = root.pane:get_current_working_dir().file_path
-		end
-		if is_windows then
-			root.cwd = root.cwd:gsub("^/([a-zA-Z]):", "%1:")
+			if is_windows then
+				root.cwd = root.cwd:gsub("^/([a-zA-Z]):", "%1:")
+			end
 		end
 
 		if string.sub(domain, 1, 3) == "SSH" then
