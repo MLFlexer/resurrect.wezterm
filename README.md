@@ -9,7 +9,7 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 * Save the state of your current window, with every window, tab and pane state stored in a `json` file.
 * Restore the save from a `json` file.
 * Restore connections to remote domains (e.g. SSH, SSHMUX)
-* Optionally enable [age](https://github.com/FiloSottile/age) encryption and decryption of the saved state.
+* Optionally enable encryption and decryption of the saved state.
 
 ## Setup example
 1. Require the plugin:
