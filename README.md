@@ -8,7 +8,7 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 * Restore shell output from a saved session.
 * Save the state of your current window, with every window, tab and pane state stored in a `json` file.
 * Restore the save from a `json` file.
-* Restore connections to remote SSH domains (e.g. SSH, SSHMUX)
+* Restore connections to remote SSH domains (e.g. SSH, SSHMUX) and WSL domains.
 * Optionally enable encryption and decryption of the saved state.
 
 ## Setup example

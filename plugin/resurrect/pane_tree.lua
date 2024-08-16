@@ -108,29 +108,31 @@ local function insert_panes(root, panes)
 			end
 		end
 
-		if string.sub(domain, 1, 3) == "SSH" then
-			root.domain = domain
-			-- we cannot get process information or lines from SSH domains
-			-- see https://wezfurlong.org/wezterm/config/lua/pane/get_foreground_process_name.html
-			root.process = ""
-			root.text = {}
-		else
-			if domain ~= "local" then
-				-- TODO: handle WSL, UNIX and TLS domains
-				wezterm.log_warn("Domain " ..
-				domain ..
-				" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
-				wezterm.emit("resurrect.error",
-					"Domain " ..
-					domain ..
-					" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
-			end
+		if domain == "local" then
 			root.process = root.pane:get_foreground_process_name()
 			if pub.get_shell_process(root.process) then
 				root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
 			else
 				root.text = {}
 			end
+		elseif string.sub(domain, 1, 3) == "SSH" or string.sub(domain, 1, 3) == "WSL" then
+			root.domain = domain
+			-- Wezterm doesn't insert scrollback on spawn_tab of domains
+			-- not saving scrollback because it would slow down the process
+			root.text = {}
+			if string.sub(domain, 1, 3) == "WSL" then
+				-- get cwd from end of tab title
+				root.cwd = root.pane:get_title():match(":%s*(.*)")
+			end
+		else
+			-- TODO: handle UNIX and TLS domains
+			wezterm.log_warn("Domain " ..
+				domain ..
+				" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
+			wezterm.emit("resurrect.error",
+				"Domain " ..
+				domain ..
+				" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
 		end
 	end
 
