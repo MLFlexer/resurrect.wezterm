@@ -3,7 +3,7 @@ local pub = {}
 
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}
----@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string[], cwd: string, process: string, pane: Pane?, is_active: boolean, is_zoomed: boolean}
+---@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string[], cwd: string, domain?: string, process: string, pane: Pane?, is_active: boolean, is_zoomed: boolean}
 
 --- checks if the user is on windows
 local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
@@ -94,16 +94,48 @@ local function insert_panes(root, panes)
 		return nil
 	end
 
-	root.cwd = root.pane:get_current_working_dir().file_path
-	if is_windows then
-		root.cwd = root.cwd:gsub("^/([a-zA-Z]):", "%1:")
-	end
-	root.process = root.pane:get_foreground_process_name()
-	if pub.get_shell_process(root.process) then
-		root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
+	local domain = root.pane:get_domain_name()
+	if not wezterm.mux.get_domain(domain):is_spawnable() then
+		wezterm.log_warn("Domain " .. domain .. " is not spawnable")
+		wezterm.emit("resurrect.error", "Domain " .. domain .. " is not spawnable")
 	else
-		root.text = {}
+		if not root.pane:get_current_working_dir() then
+			root.cwd = ""
+		else
+			root.cwd = root.pane:get_current_working_dir().file_path
+			if is_windows then
+				root.cwd = root.cwd:gsub("^/([a-zA-Z]):", "%1:")
+			end
+		end
+
+		if domain == "local" then
+			root.process = root.pane:get_foreground_process_name()
+			if pub.get_shell_process(root.process) then
+				root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
+			else
+				root.text = {}
+			end
+		elseif string.sub(domain, 1, 3) == "SSH" or string.sub(domain, 1, 3) == "WSL" then
+			root.domain = domain
+			-- Scrollback text is unavailable for SSH, and limited for WSL
+			-- not saving scrollback because it would slow down the process
+			root.text = {}
+			if string.sub(domain, 1, 3) == "WSL" then
+				-- get cwd from end of tab title
+				root.cwd = root.pane:get_title():match(":%s*(.*)")
+			end
+		else
+			-- TODO: handle UNIX and TLS domains
+			wezterm.log_warn("Domain " ..
+				domain ..
+				" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
+			wezterm.emit("resurrect.error",
+				"Domain " ..
+				domain ..
+				" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
+		end
 	end
+
 	root.pane = nil
 
 	if #panes == 0 then

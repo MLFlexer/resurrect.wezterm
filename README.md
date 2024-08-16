@@ -8,6 +8,7 @@ Resurrect your terminal environment!⚰️ A plugin to save the state of your wi
 * Restore shell output from a saved session.
 * Save the state of your current window, with every window, tab and pane state stored in a `json` file.
 * Restore the save from a `json` file.
+* Restore connections to remote SSH domains (e.g. SSH, SSHMUX) and WSL domains.
 * Optionally enable encryption and decryption of the saved state.
 
 ## Setup example
@@ -241,6 +242,7 @@ State files are json files, which will be decoded into lua tables. This can be u
                "is_active":true,
                "pane_tree":{
                   "cwd":"/home/user/",
+                  "domain": "SSHMUX:domain", -- key only exists if attached to remote domain
                   "height":50,
                   "index":0,
                   "is_active":true,
@@ -248,8 +250,8 @@ State files are json files, which will be decoded into lua tables. This can be u
                   "left":0,
                   "pixel_height":1000,
                   "pixel_width":1910,
-                  "process":"/bin/bash",
-                  "text":"Some text",
+                  "process":"/bin/bash", -- value is empty if attached to a remote domain
+                  "text":"Some text", -- not available if attached to a remote domain
                   "top":0,
                   "width":191
                },
