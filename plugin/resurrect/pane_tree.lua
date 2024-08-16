@@ -117,7 +117,7 @@ local function insert_panes(root, panes)
 			end
 		elseif string.sub(domain, 1, 3) == "SSH" or string.sub(domain, 1, 3) == "WSL" then
 			root.domain = domain
-			-- Wezterm doesn't insert scrollback on spawn_tab of domains
+			-- Scrollback text is unavailable for SSH, and limited for WSL
 			-- not saving scrollback because it would slow down the process
 			root.text = {}
 			if string.sub(domain, 1, 3) == "WSL" then
