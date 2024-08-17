@@ -115,7 +115,11 @@ local function insert_panes(root, panes)
 		if domain == "local" then
 			root.process = root.pane:get_foreground_process_name()
 			if pub.get_shell_process(root.process) then
-				root.text = root.pane:get_lines_as_escapes(root.pane:get_dimensions().scrollback_rows)
+				local nlines = root.pane:get_dimensions().scrollback_rows
+				if nlines > pub.max_nlines then
+					nlines = pub.max_nlines
+				end
+				root.text = root.pane:get_lines_as_escapes(nlines)
 			else
 				root.text = {}
 			end
