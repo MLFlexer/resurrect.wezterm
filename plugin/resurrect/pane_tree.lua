@@ -127,17 +127,9 @@ local function insert_panes(root, panes)
 			end
 		else
 			root.domain = domain
-			wezterm.log_warn(
-				"Domain "
-					.. domain
-					.. " is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40"
-			)
-			wezterm.emit(
-				"resurrect.error",
-				"Domain "
-					.. domain
-					.. " is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40"
-			)
+			-- pane:inject_output() is unavailable for non-local domains,
+			-- not saving scrollback because it would slow down the process
+			-- See: https://github.com/MLFlexer/resurrect.wezterm/issues/41
 		end
 	end
 
