@@ -6,6 +6,11 @@ local pub = {}
 ---@param workspace_state workspace_state
 ---@param opts? restore_opts
 function pub.restore_workspace(workspace_state, opts)
+	if workspace_state == nil then
+		return
+	end
+
+	wezterm.emit("resurrect.workspace_state.restore_workspace.start")
 	if opts == nil then
 		opts = {}
 	end
@@ -27,6 +32,7 @@ function pub.restore_workspace(workspace_state, opts)
 
 		window_state_mod.restore_window(opts.window, window_state, opts)
 	end
+	wezterm.emit("resurrect.workspace_state.restore_workspace.finished")
 end
 
 ---Returns the state of the current workspace

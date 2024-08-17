@@ -1,3 +1,4 @@
+local wezterm = require("wezterm")
 local tab_state_mod = require("resurrect.tab_state")
 local pub = {}
 
@@ -27,6 +28,7 @@ end
 ---@param window MuxWindow
 ---@param opts? restore_opts
 function pub.restore_window(window, window_state, opts)
+	wezterm.emit("resurrect.window_state.restore_window.start")
 	if opts then
 	else
 		opts = {}
@@ -39,6 +41,9 @@ function pub.restore_window(window, window_state, opts)
 			tab = opts.tab
 		else
 			local spawn_tab_args = { cwd = tab_state.pane_tree.cwd }
+			if tab_state.pane_tree.domain then
+				spawn_tab_args.domain = { DomainName = tab_state.pane_tree.domain }
+			end
 			tab, opts.pane, _ = window:spawn_tab(spawn_tab_args)
 		end
 
@@ -53,6 +58,7 @@ function pub.restore_window(window, window_state, opts)
 	end
 
 	active_tab:activate()
+	wezterm.emit("resurrect.window_state.restore_window.finished")
 end
 
 return pub
