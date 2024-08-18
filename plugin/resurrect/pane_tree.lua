@@ -107,6 +107,8 @@ local function insert_panes(root, panes)
 		wezterm.log_warn("Domain " .. domain .. " is not spawnable")
 		wezterm.emit("resurrect.error", "Domain " .. domain .. " is not spawnable")
 	else
+		root.domain = domain
+
 		if not root.pane:get_current_working_dir() then
 			root.cwd = ""
 		else
@@ -117,6 +119,9 @@ local function insert_panes(root, panes)
 		end
 
 		if domain == "local" then
+			-- pane:inject_output() is unavailable for non-local domains,
+			-- not saving scrollback because it would slow down the process
+			-- See: https://github.com/MLFlexer/resurrect.wezterm/issues/41
 			root.process = root.pane:get_foreground_process_name()
 			if pub.get_shell_process(root.process) then
 				local nlines = root.pane:get_dimensions().scrollback_rows
@@ -125,11 +130,6 @@ local function insert_panes(root, panes)
 				end
 				root.text = root.pane:get_lines_as_escapes(nlines)
 			end
-		else
-			root.domain = domain
-			-- pane:inject_output() is unavailable for non-local domains,
-			-- not saving scrollback because it would slow down the process
-			-- See: https://github.com/MLFlexer/resurrect.wezterm/issues/41
 		end
 	end
 
