@@ -74,6 +74,7 @@ Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
 
 > [!NOTE]
 > If you prefer to use [GnuPG](https://gnupg.org/), generate a key pair: `gpg --full-generate-key`. Get the public key with `gpg --armor --export your_email@example.com`.
+> The private key is your email or `key_id` associated with the gpg key.
 
 4.2. Enable encryption in your Wezterm config:
 ```lua
