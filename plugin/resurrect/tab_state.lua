@@ -100,7 +100,9 @@ function pub.default_on_pane_restore(pane_tree)
 	if pane_tree_mod.get_shell_process(pane_tree.process) then
 		pane:inject_output(pane_tree.text)
 	else
-		pane:send_text(pane_tree.process .. "\r\n")
+		if pane_tree.process then
+			pane:send_text(pane_tree.process .. "\r\n")
+		end
 	end
 end
 

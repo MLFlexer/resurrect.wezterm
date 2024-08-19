@@ -72,6 +72,10 @@ end
 ---@param process string
 ---@return string?
 function pub.get_shell_process(process)
+	if process == nil then
+		return nil
+	end
+
 	process = process:match("^.*[/\\](.+)$")
 	if process == "bash" then
 		return process
@@ -103,6 +107,8 @@ local function insert_panes(root, panes)
 		wezterm.log_warn("Domain " .. domain .. " is not spawnable")
 		wezterm.emit("resurrect.error", "Domain " .. domain .. " is not spawnable")
 	else
+		root.domain = domain
+
 		if not root.pane:get_current_working_dir() then
 			root.cwd = ""
 		else
@@ -113,6 +119,9 @@ local function insert_panes(root, panes)
 		end
 
 		if domain == "local" then
+			-- pane:inject_output() is unavailable for non-local domains,
+			-- not saving scrollback because it would slow down the process
+			-- See: https://github.com/MLFlexer/resurrect.wezterm/issues/41
 			root.process = root.pane:get_foreground_process_name()
 			if pub.get_shell_process(root.process) then
 				local nlines = root.pane:get_dimensions().scrollback_rows
@@ -120,27 +129,7 @@ local function insert_panes(root, panes)
 					nlines = pub.max_nlines
 				end
 				root.text = root.pane:get_lines_as_escapes(nlines)
-			else
-				root.text = {}
 			end
-		elseif string.sub(domain, 1, 3) == "SSH" or string.sub(domain, 1, 3) == "WSL" then
-			root.domain = domain
-			-- Scrollback text is unavailable for SSH, and limited for WSL
-			-- not saving scrollback because it would slow down the process
-			root.text = {}
-			if string.sub(domain, 1, 3) == "WSL" then
-				-- get cwd from end of tab title
-				root.cwd = root.pane:get_title():match(":%s*(.*)")
-			end
-		else
-			-- TODO: handle UNIX and TLS domains
-			wezterm.log_warn("Domain " ..
-				domain ..
-				" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
-			wezterm.emit("resurrect.error",
-				"Domain " ..
-				domain ..
-				" is not currently supported by resurrect.wezterm, please see: https://github.com/MLFlexer/resurrect.wezterm/issues/40")
 		end
 	end
 
