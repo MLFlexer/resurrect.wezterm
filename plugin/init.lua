@@ -69,7 +69,7 @@ local function execute_cmd_with_stdin(cmd, input)
 	if is_windows then
 		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
 	else
-		input = input:gsub("\\", "\\\\"):gsub('"', '\"'):gsub("\n", "\\n"):gsub("\r", "\\r")
+		input = input:gsub("\\", "\\\\"):gsub('"', '"'):gsub("\n", "\\n"):gsub("\r", "\\r")
 	end
 
 	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
@@ -82,7 +82,7 @@ local function execute_cmd_with_stdin(cmd, input)
 		else
 			return success, stderr
 		end
-	elseif #input < 261000 and not is_windows then -- Check if input is larger than common max on MacOS and Linux
+	elseif #input < 150000 and not is_windows then -- Check if input is larger than common max on MacOS and Linux
 		cmd = string.format("printf '%s' | %s", input, cmd)
 		local process_args = { os.getenv("SHELL"), "-c", cmd }
 
@@ -126,13 +126,20 @@ pub.encryption = {
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local cmd = string.format("%s -r %s -o %s", pub.encryption.method, pub.encryption.public_key,
-			file_path:gsub(" ", "\\ "))
+		local cmd = string.format(
+			"%s -r %s -o %s",
+			pub.encryption.method,
+			pub.encryption.public_key,
+			file_path:gsub(" ", "\\ ")
+		)
 
 		if pub.encryption.method:find("gpg") then
-			cmd = string.format("%s --batch --yes --encrypt --recipient %s --output %s", pub.encryption.method,
+			cmd = string.format(
+				"%s --batch --yes --encrypt --recipient %s --output %s",
+				pub.encryption.method,
 				pub.encryption.public_key,
-				file_path:gsub(" ", "\\ "))
+				file_path:gsub(" ", "\\ ")
+			)
 		end
 
 		local success, output = execute_cmd_with_stdin(cmd, lines)
@@ -199,10 +206,13 @@ local function write_state(file_path, state)
 	json_state = sanitize_json(json_state)
 	if pub.encryption.enable then
 		wezterm.emit("resurrect.encrypt.start", file_path)
-		local ok, err = pcall(function() return pub.encryption.encrypt(file_path, json_state) end)
+		local ok, err = pcall(function()
+			return pub.encryption.encrypt(file_path, json_state)
+		end)
 		if not ok then
-			wezterm.emit("resurrect.error", "Encryption failed: " .. err)
-			wezterm.log_error("Encryption failed: " .. err)
+			wezterm.log_error("Encryption failed: ")
+			wezterm.log_error(err)
+			wezterm.emit("resurrect.error", err)
 		else
 			wezterm.emit("resurrect.encrypt.finished", file_path)
 		end
@@ -226,7 +236,9 @@ local function load_json(file_path)
 	local json
 	if pub.encryption.enable then
 		wezterm.emit("resurrect.decrypt.start", file_path)
-		local ok, output = pcall(function() return pub.encryption.decrypt(file_path) end)
+		local ok, output = pcall(function()
+			return pub.encryption.decrypt(file_path)
+		end)
 		if not ok then
 			wezterm.emit("resurrect.error", "Decryption failed: " .. tostring(output))
 			wezterm.log_error("Decryption failed: " .. tostring(output))
@@ -258,9 +270,9 @@ function pub.save_state(state, opt_name)
 	if state.window_states then
 		write_state(get_file_path(state.workspace, "workspace", opt_name), state)
 	elseif state.tabs then
-		write_state(get_file_path(state.workspace, "window", opt_name), state)
+		write_state(get_file_path(state.title, "window", opt_name), state)
 	elseif state.pane_tree then
-		write_state(get_file_path(state.pane_tree.cwd, "tab", opt_name), state)
+		write_state(get_file_path(state.title, "tab", opt_name), state)
 	end
 end
 
