@@ -69,7 +69,7 @@ local function execute_cmd_with_stdin(cmd, input)
 	if is_windows then
 		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
 	else
-		input = input:gsub("\\", "\\\\"):gsub('"', '"'):gsub("\n", "\\n"):gsub("\r", "\\r")
+		input = input:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r")
 	end
 
 	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
@@ -83,7 +83,7 @@ local function execute_cmd_with_stdin(cmd, input)
 			return success, stderr
 		end
 	elseif #input < 150000 and not is_windows then -- Check if input is larger than common max on MacOS and Linux
-		cmd = string.format("printf '%s' | %s", input, cmd)
+		cmd = string.format('printf "%s" | %s', input, cmd)
 		local process_args = { os.getenv("SHELL"), "-c", cmd }
 
 		local success, stdout, stderr = wezterm.run_child_process(process_args)
@@ -246,6 +246,8 @@ local function load_json(file_path)
 			json = output
 			if is_windows then
 				json = json:gsub("\\\\", "\\"):gsub('`"', '"'):gsub("`n", "\n"):gsub("`r", "\r")
+			else
+				json = json:gsub("\\\\", "\\"):gsub('\\"', '"'):gsub("\\n", "\n"):gsub("\\r", "\r")
 			end
 			wezterm.emit("resurrect.decrypt.finished", file_path)
 		end
