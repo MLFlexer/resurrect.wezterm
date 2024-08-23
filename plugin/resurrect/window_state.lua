@@ -26,6 +26,7 @@ end
 
 ---restore window state
 ---@param window MuxWindow
+---@param window_state window_state
 ---@param opts? restore_opts
 function pub.restore_window(window, window_state, opts)
 	wezterm.emit("resurrect.window_state.restore_window.start")
@@ -34,7 +35,11 @@ function pub.restore_window(window, window_state, opts)
 		opts = {}
 	end
 
-	local active_tab -- TODO: remove???
+	if window_state.title then
+		window:set_title(window_state.title)
+	end
+
+	local active_tab
 	for i, tab_state in ipairs(window_state.tabs) do
 		local tab
 		if i == 1 and opts.tab then
@@ -47,7 +52,7 @@ function pub.restore_window(window, window_state, opts)
 			tab, opts.pane, _ = window:spawn_tab(spawn_tab_args)
 		end
 
-		tab_state_mod.restore_tab(tab, tab_state.pane_tree, opts)
+		tab_state_mod.restore_tab(tab, tab_state, opts)
 		if tab_state.is_active then
 			active_tab = tab
 		end

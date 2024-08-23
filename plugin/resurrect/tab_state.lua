@@ -79,17 +79,21 @@ end
 
 ---restore a tab
 ---@param tab MuxTab
----@param pane_tree pane_tree
+---@param tab_state tab_state
 ---@param opts restore_opts
-function pub.restore_tab(tab, pane_tree, opts)
+function pub.restore_tab(tab, tab_state, opts)
 	wezterm.emit("resurrect.tab_state.restore_tab.start")
 	if opts.pane then
-		pane_tree.pane = opts.pane
+		tab_state.pane_tree.pane = opts.pane
 	else
-		pane_tree.pane = tab:active_pane()
+		tab_state.pane_tree.pane = tab:active_pane()
 	end
 
-	local acc = pane_tree_mod.fold(pane_tree, { is_zoomed = false }, make_splits(opts))
+	if tab_state.title then
+		tab:set_title(tab_state.title)
+	end
+
+	local acc = pane_tree_mod.fold(tab_state.pane_tree, { is_zoomed = false }, make_splits(opts))
 	acc.active_pane:activate()
 	wezterm.emit("resurrect.tab_state.restore_tab.finished")
 end
