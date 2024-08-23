@@ -1,18 +1,22 @@
 # resurrect.wezterm
+
 Resurrect your terminal environment!⚰️ A plugin to save the state of your windows, tabs and panes. Inspired by [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) and [tmux-continuum](https://github.com/tmux-plugins/tmux-continuum).
 
 ![Screencastfrom2024-07-2918-50-57-ezgif com-resize](https://github.com/user-attachments/assets/640aefea-793c-486d-9579-1a9c8bb4c1fa)
 
 ## Features
-* Restore your windows, tabs and panes with the layout and text from a saved state.
-* Restore shell output from a saved session.
-* Save the state of your current window, with every window, tab and pane state stored in a `json` file.
-* Restore the save from a `json` file.
-* Re-attach to remote domains (e.g. SSH, SSHMUX, WSL, Docker, ect.).
-* Optionally enable encryption and decryption of the saved state.
+
+- Restore your windows, tabs and panes with the layout and text from a saved state.
+- Restore shell output from a saved session.
+- Save the state of your current window, with every window, tab and pane state stored in a `json` file.
+- Restore the save from a `json` file.
+- Re-attach to remote domains (e.g. SSH, SSHMUX, WSL, Docker, ect.).
+- Optionally enable encryption and decryption of the saved state.
 
 ## Setup example
+
 1. Require the plugin:
+
 ```lua
 local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
@@ -88,9 +92,10 @@ config.keys = {
 ```
 
 4. Optional, enable encryption (recommended):
-You can optionally configure the plugin to encrypt and decrypt the saved state. [age](https://github.com/FiloSottile/age) is the default encryption provider. [Rage](https://github.com/str4d/rage) and [GnuPG](https://gnupg.org/) encryption are also supported.
+   You can optionally configure the plugin to encrypt and decrypt the saved state. [age](https://github.com/FiloSottile/age) is the default encryption provider. [Rage](https://github.com/str4d/rage) and [GnuPG](https://gnupg.org/) encryption are also supported.
 
 4.1. Install `age` and generate a key with:
+
 ```sh
 $ age-keygen -o key.txt
 Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
@@ -101,6 +106,7 @@ Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
 > The private key is your email or key ID associated with the gpg key.
 
 4.2. Enable encryption in your Wezterm config:
+
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 resurrect.set_encryption({
@@ -111,16 +117,17 @@ resurrect.set_encryption({
 })
 ```
 
-> [!WARNING] 
+> [!WARNING]
 > FOR WINDOWS USERS
-> 
-> Due to Windows limitations with `stdin`, errors cannot be returned from the `encrypt` function. 
+>
+> Due to Windows limitations with `stdin`, errors cannot be returned from the `encrypt` function.
 
 > [!TIP]
 > If the encryption provider is not found in your PATH (common issue for GUI apps on Mac OS), you can specify the absolute path to the executable.
 > e.g. `method = "/opt/homebrew/bin/age"`
 
 Alternate implementations are possible by providing your own `encrypt` and `decrypt` functions:
+
 ```lua
 resurrect.set_encryption({
   enable = true,
@@ -128,9 +135,13 @@ resurrect.set_encryption({
   public_key = "public_key",
   encrypt = function(file_path, lines)
     -- substitute for your encryption command
-    local cmd = string.format("%s -r %s -o %s", pub.encryption.method, pub.encryption.public_key,
-      file_path:gsub(" ", "\\ "))
-
+    local cmd = string.format(
+      "%s -r %s -o %s",
+      pub.encryption.method,
+      pub.encryption.public_key,
+      file_path:gsub(" ", "\\ ")
+    )
+    
     local success, output = execute_cmd_with_stdin(cmd, lines)
     if not success then
       error("Encryption failed:" .. output)
@@ -139,12 +150,12 @@ resurrect.set_encryption({
   decrypt = function(file_path)
     -- substitute for your decryption command
     local cmd = { pub.encryption.method, "-d", "-i", pub.encryption.private_key, file_path }
-
+    
     local success, stdout, stderr = wezterm.run_child_process(cmd)
     if not success then
       error("Decryption failed: " .. stderr)
     end
-
+    
     return stdout
   end,
 })
@@ -153,15 +164,19 @@ resurrect.set_encryption({
 If you wish to share a non-documented way of encrypting your files or think something is missing, then please make a PR or file an issue.
 
 ## How do I use it?
-I use the builtin `resurrect.periodic_save()` to save my workspaces every 15 minutes. This ensures that if I close Wezterm, then I can restore my session state to a state which is at most 15 minutes old.
 
-I also use it to restore the state of my workspaces. As I use the plugin [smart_workspace_switcher.wezterm](https://github.com/MLFlexer/smart_workspace_switcher.wezterm), to change workspaces whenever I change "project" (git repository).
+I use the builtin `resurrect.periodic_save()` to save my workspaces every 15 minutes.
+This ensures that if I close Wezterm, then I can restore my session state to a state which is at most 15 minutes old.
+
+I also use it to restore the state of my workspaces. As I use the plugin [smart_workspace_switcher.wezterm](https://github.com/MLFlexer/smart_workspace_switcher.wezterm),
+to change workspaces whenever I change "project" (git repository).
 I have added the following to my configuration to be able to do this whenever I change workspaces:
+
 ```lua
 -- loads the state whenever I create a new workspace
 wezterm.on("smart_workspace_switcher.workspace_switcher.created", function(window, path, label)
   local workspace_state = resurrect.workspace_state
-
+  
   workspace_state.restore_workspace(resurrect.load_state(label, "workspace"), {
     window = window,
     relative = true,
@@ -176,6 +191,7 @@ wezterm.on("smart_workspace_switcher.workspace_switcher.selected", function(wind
   resurrect.save_state(workspace_state.get_workspace_state())
 end)
 ```
+
 You can checkout my configuration [here](https://github.com/MLFlexer/.dotfiles/tree/main/home-manager/config/wezterm).
 
 ## Configuration
@@ -194,28 +210,46 @@ You can add the `opts` table to change the behaviour. It exposes the following o
 `save_windows` will save windows if true otherwise not.
 
 ### Limiting the amount of output lines saved for a pane
-`resurrect.set_max_nlines(number)` will limit each pane to save at most `number` lines to the state. This can improve performance when saving and loading state.
+
+`resurrect.set_max_nlines(number)` will limit each pane to save at most `number` lines to the state.
+This can improve performance when saving and loading state.
+
 ### save_state options
-`resurrect.save_state(state, opt_name?)` takes an optional string argument, which will rename the file to the name of the string.
+
+`resurrect.save_state(state, opt_name?)` takes an optional string argument,
+which will rename the file to the name of the string.
+
 ### fuzzy_load opts
-the `resurrect.fuzzy_load(window, pane, callback, opts?)` function takes an optional `opts` argument, which has the following types:
+
+the `resurrect.fuzzy_load(window, pane, callback, opts?)` function takes an optional `opts` argument,
+which has the following types:
+
 ```lua
 ---@alias fmt_fun fun(label: string): string
 ---@alias fuzzy_load_opts {title: string, is_fuzzy: boolean, ignore_workspaces: boolean, ignore_tabs: boolean, ignore_windows: boolean, fmt_window: fmt_fun, fmt_workspace: fmt_fun, fmt_tab: fmt_fun }
 ```
+
 This is used to format labels, ignore saved state, change the title and change the behaviour of the fuzzy finder.
+
 ### Change the directory to store the saved state
+
 ```lua
 resurrect.change_state_save_dir("/some/other/directory")
 ```
-> [!WARNING] 
+
+> [!WARNING]
 > FOR WINDOWS USERS
-> 
-> You must ensure that there is write access to the directory where the state is stored, as such it is suggested that you set your own state directory like so:
+>
+> You must ensure that there is write access to the directory where the state is stored,
+> as such it is suggested that you set your own state directory like so:
+>
 > ```lua
-> resurrect.save_state_dir = "C:\\Users\\Admin\\Desktop\\state\\" -- Set some directory where wezterm has write access
+> -- Set some directory where Wezterm has write access
+> resurrect.save_state_dir = "C:\\Users\\Admin\\Desktop\\state\\"
 > ```
+
 ### Events
+
 This plugin emits the following events that you can use for your own callback functions:
 
 - `resurrect.decrypt.start(file_path)`
@@ -238,6 +272,7 @@ This plugin emits the following events that you can use for your own callback fu
 - `resurrect.workspace_state.restore_workspace.finished`
 
 Example: sending a toast notification when specified events occur, but suppress on `periodic_save()`:
+
 ```lua
 local resurrect_event_listeners = {
   "resurrect.error",
@@ -264,7 +299,11 @@ end
 ```
 
 ## State files
-State files are json files, which will be decoded into lua tables. This can be used to create your own layout files which can then be loaded. Here is an example of a json file:
+
+State files are json files, which will be decoded into lua tables.
+This can be used to create your own layout files which can then be loaded.
+Here is an example of a json file:
+
 ```json
 {
    "window_states":[
@@ -307,6 +346,7 @@ State files are json files, which will be decoded into lua tables. This can be u
 ## Augmenting the command palette
 
 If you would like to add entries in your Wezterm command palette for renaming and switching workspaces:
+
 ```lua
 local workspace_switcher = wezterm.plugin.require("https://github.com/MLFlexer/smart_workspace_switcher.wezterm")
 
@@ -321,7 +361,7 @@ wezterm.on("augment-command-palette", function(window, pane)
     {
       brief = "Window | Workspace: Rename Workspace",
       icon = "md_briefcase_edit",
-      action = wezterm.action.PromptInputLine {
+      action = wezterm.action.PromptInputLine({
         description = "Enter new name for workspace",
         action = wezterm.action_callback(function(window, pane, line)
           if line then
@@ -329,29 +369,51 @@ wezterm.on("augment-command-palette", function(window, pane)
             resurrect.save_state(workspace_state.get_workspace_state())
           end
         end),
-      },
+      }),
     },
   }
 end)
 ```
 
 ## FAQ
+
 ### Pane CWD is not correct on Windows
+
 If your pane CWD is incorrect then it might be a problem with the shell integration and OSC 7. See [Wezterm documentation](https://wezfurlong.org/wezterm/shell-integration.html).
+
 ### How do I keep my plugins up to date?
-*Manually*
 
-Wezterm git clones your plugins into a plugin directory. Enter `wezterm.plugin.list()` in the Wezterm Debug Overlay (`Ctrl + Shift + L`) to see where they are stored. You can then update them individually using git pull.
+#### Manually
 
-*Automatically*
+Wezterm git clones your plugins into a plugin directory.
+Enter `wezterm.plugin.list()` in the Wezterm Debug Overlay (`Ctrl + Shift + L`) to see where they are stored.
+You can then update them individually using git pull.
+
+#### Automatically
 
 Add `wezterm.plugin.update_all()` to your Wezterm config.
 
 ## Contributions
-Suggestions, Issues and PRs are welcome! The features currently implemented are the ones I use the most, but your workflow might differ. As such, if you have any proposals on how to improve the plugin please feel free to make an issue or even better a PR!
+
+Suggestions, Issues and PRs are welcome!
+The features currently implemented are the ones I use the most, but your workflow might differ.
+As such, if you have any proposals on how to improve the plugin,
+then please feel free to make an issue or even better a PR!
 
 ### Technical details
-Restoring of the panes are done via. the `pane_tree` file, which has functions to work on a binary-like-tree of the panes. Each node in the pane_tree represents a possible split pane. If the pane has a `bottom` and/or `right` child, then the pane is split. If you have any questions to the implementation, then I suggest you read the code or open an issue and I will try to clarify. Improvements to this section is also very much welcome.
+
+Restoring of the panes are done via. the `pane_tree` file,
+which has functions to work on a binary-like-tree of the panes.
+Each node in the pane_tree represents a possible split pane.
+If the pane has a `bottom` and/or `right` child, then the pane is split.
+If you have any questions to the implementation,
+then I suggest you read the code or open an issue and I will try to clarify.
+Improvements to this section is also very much welcome.
 
 ## Disclaimer
-If you don't setup encryption then the state of your terminal is saved as plaintext json files. Please be aware that the plugin will by default write the output of the shell among other things, which could contain secrets or other vulnerable data. If you do not want to store this as plaintext, then please use the provided documentation for encrypting state.
+
+If you don't setup encryption then the state of your terminal is saved as plaintext json files.
+Please be aware that the plugin will by default write the output of the shell among other things,
+which could contain secrets or other vulnerable data.
+If you do not want to store this as plaintext,
+then please use the provided documentation for encrypting state.
