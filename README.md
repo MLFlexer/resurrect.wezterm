@@ -18,25 +18,38 @@ local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 ```
 
-2. Saving workspace state:
+2. Saving workspace and/or window state based on name and title:
+
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 
 config.keys = {
   -- ...
   {
-  key = "s",
-  mods = "ALT",
-  action = wezterm.action.Multiple({
-    wezterm.action_callback(function(win, pane)
-      resurrect.save_state(resurrect.workspace_state.get_workspace_state())
-    end),
-    }),
+    key = "w",
+    mods = "ALT",
+    action = wezterm.action_callback(function(win, pane)
+        resurrect.save_state(resurrect.workspace_state.get_workspace_state())
+      end),
+  },
+  {
+    key = "W",
+    mods = "ALT",
+    action = resurrect.window_state.save_window_action(),
+  },
+  {
+    key = "s",
+    mods = "ALT",
+    action = wezterm.action_callback(function(win, pane)
+        resurrect.save_state(resurrect.workspace_state.get_workspace_state())
+        resurrect.window_state.save_window_action()
+      end),
   },
 }
 ```
 
-3. Loading workspace state via. fuzzy finder:
+3. Loading workspace or window state via. fuzzy finder:
+
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 
@@ -45,20 +58,31 @@ config.keys = {
   {
     key = "l",
     mods = "ALT",
-    action = wezterm.action.Multiple({
-      wezterm.action_callback(function(win, pane)
-	resurrect.fuzzy_load(win, pane, function(id, label)
-	  id = string.match(id, "([^/]+)$")
-	  id = string.match(id, "(.+)%..+$")
-	  local state = resurrect.load_state(id, "workspace")
-	  resurrect.workspace_state.restore_workspace(state, {
-	    relative = true,
-	    restore_text = true,
+    action = wezterm.action_callback(function(win, pane)
+      resurrect.fuzzy_load(win, pane, function(id, label)
+        local type = string.match(id, "^([^/]+)") -- match before '/'
+        id = string.match(id, "([^/]+)$") -- match after '/'
+        id = string.match(id, "(.+)%..+$") -- remove file extension
+        local state
+        if type == "workspace" then
+          state = resurrect.load_state(id, "workspace")
+          resurrect.workspace_state.restore_workspace(state, {
+            relative = true,
+            restore_text = true,
             on_pane_restore = resurrect.tab_state.default_on_pane_restore,
-	  })
-	end)
-      end),
-    }),
+          })
+        elseif type == "window" then
+          state = resurrect.load_state(id, "window")
+          resurrect.window_state.restore_window(win:mux_window(), state, {
+            relative = true,
+            restore_text = true,
+            on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+            -- uncomment this line to use active tab when restoring
+            -- tab = win:active_tab(),
+          })
+        end
+      end)
+    end),
   },
 }
 ```
