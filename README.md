@@ -193,7 +193,6 @@ You can add the `opts` table to change the behaviour. It exposes the following o
 `save_workspaces` will save workspaces if true otherwise not.
 `save_windows` will save windows if true otherwise not.
 
-{ interval_seconds: integer?, save_workspaces: boolean?, save_windows: boolean?, save_tabs: boolean? }
 ### Limiting the amount of output lines saved for a pane
 `resurrect.set_max_nlines(number)` will limit each pane to save at most `number` lines to the state. This can improve performance when saving and loading state.
 ### save_state options
