@@ -52,7 +52,7 @@ function pub.restore_window(window, window_state, opts)
 			tab, opts.pane, _ = window:spawn_tab(spawn_tab_args)
 		end
 
-		tab_state_mod.restore_tab(tab, tab_state.pane_tree, opts)
+		tab_state_mod.restore_tab(tab, tab_state, opts)
 		if tab_state.is_active then
 			active_tab = tab
 		end
