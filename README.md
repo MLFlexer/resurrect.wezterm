@@ -18,25 +18,38 @@ local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 ```
 
-2. Saving workspace state:
+2. Saving workspace and/or window state based on name and title:
+
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 
 config.keys = {
   -- ...
   {
-  key = "s",
-  mods = "ALT",
-  action = wezterm.action.Multiple({
-    wezterm.action_callback(function(win, pane)
-      resurrect.save_state(resurrect.workspace_state.get_workspace_state())
-    end),
-    }),
+    key = "w",
+    mods = "ALT",
+    action = wezterm.action_callback(function(win, pane)
+        resurrect.save_state(resurrect.workspace_state.get_workspace_state())
+      end),
+  },
+  {
+    key = "W",
+    mods = "ALT",
+    action = resurrect.window_state.save_window_action(),
+  },
+  {
+    key = "s",
+    mods = "ALT",
+    action = wezterm.action_callback(function(win, pane)
+        resurrect.save_state(resurrect.workspace_state.get_workspace_state())
+        resurrect.window_state.save_window_action()
+      end),
   },
 }
 ```
 
-3. Loading workspace state via. fuzzy finder:
+3. Loading workspace or window state via. fuzzy finder:
+
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 
@@ -45,20 +58,31 @@ config.keys = {
   {
     key = "l",
     mods = "ALT",
-    action = wezterm.action.Multiple({
-      wezterm.action_callback(function(win, pane)
-	resurrect.fuzzy_load(win, pane, function(id, label)
-	  id = string.match(id, "([^/]+)$")
-	  id = string.match(id, "(.+)%..+$")
-	  local state = resurrect.load_state(id, "workspace")
-	  resurrect.workspace_state.restore_workspace(state, {
-	    relative = true,
-	    restore_text = true,
+    action = wezterm.action_callback(function(win, pane)
+      resurrect.fuzzy_load(win, pane, function(id, label)
+        local type = string.match(id, "^([^/]+)") -- match before '/'
+        id = string.match(id, "([^/]+)$") -- match after '/'
+        id = string.match(id, "(.+)%..+$") -- remove file extension
+        local state
+        if type == "workspace" then
+          state = resurrect.load_state(id, "workspace")
+          resurrect.workspace_state.restore_workspace(state, {
+            relative = true,
+            restore_text = true,
             on_pane_restore = resurrect.tab_state.default_on_pane_restore,
-	  })
-	end)
-      end),
-    }),
+          })
+        elseif type == "window" then
+          state = resurrect.load_state(id, "window")
+          resurrect.window_state.restore_window(win:mux_window(), state, {
+            relative = true,
+            restore_text = true,
+            on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+            -- uncomment this line to use active tab when restoring
+            -- tab = win:active_tab(),
+          })
+        end
+      end)
+    end),
   },
 }
 ```
@@ -155,8 +179,20 @@ end)
 You can checkout my configuration [here](https://github.com/MLFlexer/.dotfiles/tree/main/home-manager/config/wezterm).
 
 ## Configuration
+
 ### Periodic saving of state
-`resurrect.periodic_save(interval_seconds?)` will save the workspace state every 15 minutes or `interval_seconds` if supplied.
+
+`resurrect.periodic_save(opts?)` will save the workspace state every 15 minutes by default.
+You can add the `opts` table to change the behaviour. It exposes the following options:
+
+```lua
+---@param opts? { interval_seconds: integer?, save_workspaces: boolean?, save_windows: boolean? }
+```
+
+`interval_seconds` will save the state every time the supplied number of seconds has surpassed.
+`save_workspaces` will save workspaces if true otherwise not.
+`save_windows` will save windows if true otherwise not.
+
 ### Limiting the amount of output lines saved for a pane
 `resurrect.set_max_nlines(number)` will limit each pane to save at most `number` lines to the state. This can improve performance when saving and loading state.
 ### save_state options

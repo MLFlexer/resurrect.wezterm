@@ -69,7 +69,7 @@ local function execute_cmd_with_stdin(cmd, input)
 	if is_windows then
 		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
 	else
-		input = input:gsub("\\", "\\\\"):gsub('"', '\"'):gsub("\n", "\\n"):gsub("\r", "\\r")
+		input = input:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r")
 	end
 
 	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
@@ -82,8 +82,8 @@ local function execute_cmd_with_stdin(cmd, input)
 		else
 			return success, stderr
 		end
-	elseif #input < 261000 and not is_windows then -- Check if input is larger than common max on MacOS and Linux
-		cmd = string.format("printf '%s' | %s", input, cmd)
+	elseif #input < 150000 and not is_windows then -- Check if input is larger than common max on MacOS and Linux
+		cmd = string.format('printf "%s" | %s', input, cmd)
 		local process_args = { os.getenv("SHELL"), "-c", cmd }
 
 		local success, stdout, stderr = wezterm.run_child_process(process_args)
@@ -126,13 +126,20 @@ pub.encryption = {
 	private_key = nil,
 	public_key = nil,
 	encrypt = function(file_path, lines)
-		local cmd = string.format("%s -r %s -o %s", pub.encryption.method, pub.encryption.public_key,
-			file_path:gsub(" ", "\\ "))
+		local cmd = string.format(
+			"%s -r %s -o %s",
+			pub.encryption.method,
+			pub.encryption.public_key,
+			file_path:gsub(" ", "\\ ")
+		)
 
 		if pub.encryption.method:find("gpg") then
-			cmd = string.format("%s --batch --yes --encrypt --recipient %s --output %s", pub.encryption.method,
+			cmd = string.format(
+				"%s --batch --yes --encrypt --recipient %s --output %s",
+				pub.encryption.method,
 				pub.encryption.public_key,
-				file_path:gsub(" ", "\\ "))
+				file_path:gsub(" ", "\\ ")
+			)
 		end
 
 		local success, output = execute_cmd_with_stdin(cmd, lines)
@@ -199,10 +206,13 @@ local function write_state(file_path, state)
 	json_state = sanitize_json(json_state)
 	if pub.encryption.enable then
 		wezterm.emit("resurrect.encrypt.start", file_path)
-		local ok, err = pcall(function() return pub.encryption.encrypt(file_path, json_state) end)
+		local ok, err = pcall(function()
+			return pub.encryption.encrypt(file_path, json_state)
+		end)
 		if not ok then
-			wezterm.emit("resurrect.error", "Encryption failed: " .. err)
-			wezterm.log_error("Encryption failed: " .. err)
+			wezterm.log_error("Encryption failed: ")
+			wezterm.log_error(err)
+			wezterm.emit("resurrect.error", err)
 		else
 			wezterm.emit("resurrect.encrypt.finished", file_path)
 		end
@@ -226,7 +236,9 @@ local function load_json(file_path)
 	local json
 	if pub.encryption.enable then
 		wezterm.emit("resurrect.decrypt.start", file_path)
-		local ok, output = pcall(function() return pub.encryption.decrypt(file_path) end)
+		local ok, output = pcall(function()
+			return pub.encryption.decrypt(file_path)
+		end)
 		if not ok then
 			wezterm.emit("resurrect.error", "Decryption failed: " .. tostring(output))
 			wezterm.log_error("Decryption failed: " .. tostring(output))
@@ -234,6 +246,8 @@ local function load_json(file_path)
 			json = output
 			if is_windows then
 				json = json:gsub("\\\\", "\\"):gsub('`"', '"'):gsub("`n", "\n"):gsub("`r", "\r")
+			else
+				json = json:gsub("\\\\", "\\"):gsub('\\"', '"'):gsub("\\n", "\n"):gsub("\\r", "\r")
 			end
 			wezterm.emit("resurrect.decrypt.finished", file_path)
 		end
@@ -258,9 +272,9 @@ function pub.save_state(state, opt_name)
 	if state.window_states then
 		write_state(get_file_path(state.workspace, "workspace", opt_name), state)
 	elseif state.tabs then
-		write_state(get_file_path(state.workspace, "window", opt_name), state)
+		write_state(get_file_path(state.title, "window", opt_name), state)
 	elseif state.pane_tree then
-		write_state(get_file_path(state.pane_tree.cwd, "tab", opt_name), state)
+		write_state(get_file_path(state.title, "tab", opt_name), state)
 	end
 end
 
@@ -280,16 +294,31 @@ function pub.load_state(name, type)
 end
 
 ---Saves the stater after interval in seconds
----@param interval_seconds integer
-function pub.periodic_save(interval_seconds)
-	if interval_seconds == nil then
-		interval_seconds = 60 * 15
+---@param opts? { interval_seconds: integer?, save_workspaces: boolean?, save_windows: boolean?, save_tabs: boolean? }
+function pub.periodic_save(opts)
+	if opts == nil then
+		opts = { save_workspaces = true }
 	end
-	wezterm.time.call_after(interval_seconds, function()
+	if opts.interval_seconds == nil then
+		opts.interval_seconds = 60 * 15
+	end
+	wezterm.time.call_after(opts.interval_seconds, function()
 		wezterm.emit("resurrect.periodic_save")
-		local workspace_state = require("resurrect.workspace_state")
-		pub.save_state(workspace_state.get_workspace_state())
-		pub.periodic_save(interval_seconds)
+		if opts.save_workspaces then
+			pub.save_state(pub.workspace_state.get_workspace_state())
+		end
+
+		if opts.save_windows then
+			for _, gui_win in ipairs(wezterm.gui.gui_windows()) do
+				local mux_win = gui_win:mux_window()
+				local title = mux_win:get_title()
+				if title ~= "" and title ~= nil then
+					pub.save_state(pub.window_state.get_window_state(mux_win))
+				end
+			end
+		end
+
+		pub.periodic_save(opts)
 	end)
 end
 
@@ -338,34 +367,30 @@ function pub.fuzzy_load(window, pane, callback, opts)
 		opts = pub.get_default_fuzzy_load_opts()
 	end
 
-	if not opts.ignore_workspaces then
-		for i, file_path in ipairs(wezterm.glob("*", pub.save_state_dir .. "/workspace")) do
-			if opts.fmt_workspace then
-				state_files[i] = { id = file_path, label = opts.fmt_workspace(file_path) }
+	local function insert_choices(type, fmt)
+		for _, file in ipairs(wezterm.glob("*", pub.save_state_dir .. "/" .. type)) do
+			local label
+			local id = type .. "/" .. file
+
+			if fmt then
+				label = fmt(file)
 			else
-				state_files[i] = { id = file_path, label = file_path }
+				label = file
 			end
+			table.insert(state_files, { id = id, label = label })
 		end
+	end
+
+	if not opts.ignore_workspaces then
+		insert_choices("workspace", opts.fmt_workspace)
 	end
 
 	if not opts.ignore_windows then
-		for i, file_path in ipairs(wezterm.glob("*", pub.save_state_dir .. "/window")) do
-			if opts.fmt_window then
-				state_files[i] = { id = file_path, label = opts.fmt_window(file_path) }
-			else
-				state_files[i] = { id = file_path, label = file_path }
-			end
-		end
+		insert_choices("window", opts.fmt_window)
 	end
 
 	if not opts.ignore_tabs then
-		for i, file_path in ipairs(wezterm.glob("*", pub.save_state_dir .. "/tab")) do
-			if opts.fmt_tab then
-				state_files[i] = { id = file_path, label = opts.fmt_tab(file_path) }
-			else
-				state_files[i] = { id = file_path, label = file_path }
-			end
-		end
+		insert_choices("tab", opts.fmt_tab)
 	end
 
 	window:perform_action(
