@@ -179,8 +179,21 @@ end)
 You can checkout my configuration [here](https://github.com/MLFlexer/.dotfiles/tree/main/home-manager/config/wezterm).
 
 ## Configuration
+
 ### Periodic saving of state
-`resurrect.periodic_save(interval_seconds?)` will save the workspace state every 15 minutes or `interval_seconds` if supplied.
+
+`resurrect.periodic_save(opts?)` will save the workspace state every 15 minutes by default.
+You can add the `opts` table to change the behaviour. It exposes the following options:
+
+```lua
+---@param opts? { interval_seconds: integer?, save_workspaces: boolean?, save_windows: boolean? }
+```
+
+`interval_seconds` will save the state every time the supplied number of seconds has surpassed.
+`save_workspaces` will save workspaces if true otherwise not.
+`save_windows` will save windows if true otherwise not.
+
+{ interval_seconds: integer?, save_workspaces: boolean?, save_windows: boolean?, save_tabs: boolean? }
 ### Limiting the amount of output lines saved for a pane
 `resurrect.set_max_nlines(number)` will limit each pane to save at most `number` lines to the state. This can improve performance when saving and loading state.
 ### save_state options

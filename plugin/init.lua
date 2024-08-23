@@ -292,16 +292,15 @@ function pub.load_state(name, type)
 end
 
 ---Saves the stater after interval in seconds
----@param interval_seconds integer
----@param opts? { save_workspaces: boolean, save_windows: boolean, save_tabs: boolean }
-function pub.periodic_save(interval_seconds, opts)
-	if interval_seconds == nil then
-		interval_seconds = 60 * 15
-	end
+---@param opts? { interval_seconds: integer?, save_workspaces: boolean?, save_windows: boolean?, save_tabs: boolean? }
+function pub.periodic_save(opts)
 	if opts == nil then
 		opts = { save_workspaces = true }
 	end
-	wezterm.time.call_after(interval_seconds, function()
+	if opts.interval_seconds == nil then
+		opts.interval_seconds = 60 * 15
+	end
+	wezterm.time.call_after(opts.interval_seconds, function()
 		wezterm.emit("resurrect.periodic_save")
 		if opts.save_workspaces then
 			pub.save_state(pub.workspace_state.get_workspace_state())
@@ -317,7 +316,7 @@ function pub.periodic_save(interval_seconds, opts)
 			end
 		end
 
-		pub.periodic_save(interval_seconds, opts)
+		pub.periodic_save(opts)
 	end)
 end
 
