@@ -7,11 +7,7 @@ function pub.write_all_bytes(pane)
 		pane:inject_output(string.char(i))
 	end
 	--utf8
-	for i = 128, 55295 do
-		pane:inject_output(utf8.char(i))
-	end
-	local max = 5000 * 150 -- scrolback * some arbitrary number of chars per line
-	for i = 57344, max do
+	for i = 128, 31000 do
 		pane:inject_output(utf8.char(i))
 	end
 end

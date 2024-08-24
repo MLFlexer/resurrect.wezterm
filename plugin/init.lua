@@ -66,13 +66,8 @@ end
 ---@return boolean
 ---@return string
 local function execute_cmd_with_stdin(cmd, input)
-	-- if is_windows then
-	-- 	input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
-	-- end
-
 	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
-		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
-		cmd = string.format('Write-Output -NoEnumerate "%s" | %s', input, cmd)
+		cmd = string.format("%s | %s", wezterm.shell_join_args({ "Write-Output", "-NoEnumerate", input }), cmd)
 		local process_args = { "pwsh.exe", "-NoProfile", "-Command", cmd }
 
 		local success, stdout, stderr = wezterm.run_child_process(process_args)
@@ -177,7 +172,6 @@ end
 --- @return string
 local function sanitize_json(data)
 	wezterm.emit("resurrect.sanitize_json.start", data)
-	-- data = data:gsub("[\x00-\x1F\x7F]", function(c)
 	data = data:gsub("[\x00-\x1F]", function(c)
 		local byte = string.byte(c)
 
@@ -233,9 +227,6 @@ local function load_json(file_path)
 			wezterm.log_error("Decryption failed: " .. tostring(output))
 		else
 			json = output
-			if is_windows then
-				json = json:gsub("\\\\", "\\"):gsub('`"', '"'):gsub("`n", "\n"):gsub("`r", "\r")
-			end
 			wezterm.emit("resurrect.decrypt.finished", file_path)
 		end
 	else
