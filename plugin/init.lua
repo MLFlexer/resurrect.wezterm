@@ -172,6 +172,7 @@ end
 --- @return string
 local function sanitize_json(data)
 	wezterm.emit("resurrect.sanitize_json.start", data)
+	-- escapes control characters to ensure valid json
 	data = data:gsub("[\x00-\x1F]", function(c)
 		return string.format("\\u00%02X", string.byte(c))
 	end)
