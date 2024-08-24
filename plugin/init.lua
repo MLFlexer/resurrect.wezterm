@@ -173,9 +173,7 @@ end
 local function sanitize_json(data)
 	wezterm.emit("resurrect.sanitize_json.start", data)
 	data = data:gsub("[\x00-\x1F]", function(c)
-		local byte = string.byte(c)
-
-		return string.format("\\u00%02X", byte)
+		return string.format("\\u00%02X", string.byte(c))
 	end)
 	wezterm.emit("resurrect.sanitize_json.finished")
 	return data
