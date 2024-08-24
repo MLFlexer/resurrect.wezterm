@@ -66,13 +66,12 @@ end
 ---@return boolean
 ---@return string
 local function execute_cmd_with_stdin(cmd, input)
-	if is_windows then
-		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
-	else
-		input = input:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r")
-	end
+	-- if is_windows then
+	-- 	input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
+	-- end
 
 	if is_windows and #input < 32000 then -- Check if input is larger than max cmd length on Windows
+		input = input:gsub("\\", "\\\\"):gsub('"', '`"'):gsub("\n", "`n"):gsub("\r", "`r")
 		cmd = string.format('Write-Output -NoEnumerate "%s" | %s', input, cmd)
 		local process_args = { "pwsh.exe", "-NoProfile", "-Command", cmd }
 
@@ -83,7 +82,7 @@ local function execute_cmd_with_stdin(cmd, input)
 			return success, stderr
 		end
 	elseif #input < 150000 and not is_windows then -- Check if input is larger than common max on MacOS and Linux
-		cmd = string.format('printf "%s" | %s', input, cmd)
+		cmd = string.format("%s | %s", wezterm.shell_join_args({ "echo", "-E", "-n", input }), cmd)
 		local process_args = { os.getenv("SHELL"), "-c", cmd }
 
 		local success, stdout, stderr = wezterm.run_child_process(process_args)
@@ -178,21 +177,11 @@ end
 --- @return string
 local function sanitize_json(data)
 	wezterm.emit("resurrect.sanitize_json.start", data)
-	data = data:gsub("[\x00-\x1F\x7F]", function(c)
+	-- data = data:gsub("[\x00-\x1F\x7F]", function(c)
+	data = data:gsub("[\x00-\x1F]", function(c)
 		local byte = string.byte(c)
-		if is_windows then
-			if byte == 0x0A then
-				return "\\n"
-			elseif byte == 0x0D then
-				return "\\r"
-			elseif byte == 0x09 then
-				return "\\t"
-			else
-				return string.format("\\u%04X", byte)
-			end
-		else
-			return string.format("\\u00%02X", byte)
-		end
+
+		return string.format("\\u00%02X", byte)
 	end)
 	wezterm.emit("resurrect.sanitize_json.finished")
 	return data
@@ -246,8 +235,6 @@ local function load_json(file_path)
 			json = output
 			if is_windows then
 				json = json:gsub("\\\\", "\\"):gsub('`"', '"'):gsub("`n", "\n"):gsub("`r", "\r")
-			else
-				json = json:gsub("\\\\", "\\"):gsub('\\"', '"'):gsub("\\n", "\n"):gsub("\\r", "\r")
 			end
 			wezterm.emit("resurrect.decrypt.finished", file_path)
 		end
@@ -262,6 +249,7 @@ local function load_json(file_path)
 		return nil
 	end
 	json = sanitize_json(json)
+
 	return wezterm.json_parse(json)
 end
 
