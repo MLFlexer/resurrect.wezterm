@@ -77,7 +77,7 @@ config.keys = {
           })
         elseif type == "window" then
           state = resurrect.load_state(id, "window")
-          resurrect.window_state.restore_window(win:mux_window(), state, {
+          resurrect.window_state.restore_window(pane:window(), state, {
             relative = true,
             restore_text = true,
             on_pane_restore = resurrect.tab_state.default_on_pane_restore,
