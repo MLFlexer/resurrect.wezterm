@@ -339,6 +339,7 @@ end
 ---@param callback fun(id: string, label: string, save_state_dir: string)
 ---@param opts fuzzy_load_opts?
 function pub.fuzzy_load(window, pane, callback, opts)
+	wezterm.emit("resurrect.fuzzy_load.start", window, pane)
 	local state_files = {}
 
 	if opts == nil then
@@ -377,6 +378,7 @@ function pub.fuzzy_load(window, pane, callback, opts)
 				if id and label then
 					callback(id, label, pub.save_state_dir)
 				end
+				wezterm.emit("resurrect.fuzzy_load.finished", window, pane)
 			end),
 			title = opts.title,
 			choices = state_files,
