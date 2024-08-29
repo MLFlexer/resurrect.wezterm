@@ -398,6 +398,7 @@ function pub.fuzzy_load(window, pane, callback, opts)
 	)
 end
 
+---@param file_path string
 function pub.delete_state(file_path)
 	wezterm.emit("resurrect.delete_state.start", file_path)
 	local path = pub.save_state_dir .. file_path
