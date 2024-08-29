@@ -308,7 +308,7 @@ end
 function pub.get_default_fuzzy_load_opts()
 	return {
 		title = "Load State",
-		description = "Select State to Load: ",
+		description = "Select State to Load and press Enter = accept, Esc = cancel, / = filter",
 		fuzzy_description = "Search State to Load: ",
 		is_fuzzy = true,
 		ignore_workspaces = false,
