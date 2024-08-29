@@ -107,7 +107,7 @@ config.keys = {
         end,
         {
           title = "Delete State",
-          description = "Choose State to Delete: ",
+          description = "Select State to Delete and press Enter = accept, Esc = cancel, / = filter",
           fuzzy_description = "Search State to Delete: ",
           is_fuzzy = true,
         })
