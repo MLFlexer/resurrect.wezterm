@@ -91,10 +91,34 @@ config.keys = {
 }
 ```
 
-4. Optional, enable encryption (recommended):
+4. Delete a saved state file via. fuzzy finder:
+
+```lua
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+
+config.keys = {
+  -- ...
+  {
+    key = "d",
+    mods = "ALT",
+    action = wezterm.action_callback(function(win, pane)
+      resurrect.fuzzy_load(win, pane, function(id)
+          resurrect.delete_state(id)
+        end,
+        {
+          title = "Delete State",
+          description = "Choose State to Delete: ",
+          fuzzy_description = "Search State to Delete: ",
+          is_fuzzy = true,
+        })
+    end),
+  },
+}
+```
+5. Optional, enable encryption (recommended):
    You can optionally configure the plugin to encrypt and decrypt the saved state. [age](https://github.com/FiloSottile/age) is the default encryption provider. [Rage](https://github.com/str4d/rage) and [GnuPG](https://gnupg.org/) encryption are also supported.
 
-4.1. Install `age` and generate a key with:
+5.1. Install `age` and generate a key with:
 
 ```sh
 $ age-keygen -o key.txt
@@ -105,7 +129,7 @@ Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
 > If you prefer to use [GnuPG](https://gnupg.org/), generate a key pair: `gpg --full-generate-key`. Get the public key with `gpg --armor --export your_email@example.com`.
 > The private key is your email or key ID associated with the gpg key.
 
-4.2. Enable encryption in your Wezterm config:
+5.2. Enable encryption in your Wezterm config:
 
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
@@ -254,6 +278,8 @@ This plugin emits the following events that you can use for your own callback fu
 
 - `resurrect.decrypt.start(file_path)`
 - `resurrect.decrypt.finished(file_path)`
+- `resurrect.delete_state.start(file_path)`
+- `resurrect.delete_state.finished(file_path)`
 - `resurrect.encrypt.start(file_path)`
 - `resurrect.encrypt.finished(file_path)`
 - `resurrect.error(err)`
