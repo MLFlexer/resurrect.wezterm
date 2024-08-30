@@ -256,6 +256,8 @@ This plugin emits the following events that you can use for your own callback fu
 - `resurrect.decrypt.finished(file_path)`
 - `resurrect.encrypt.start(file_path)`
 - `resurrect.encrypt.finished(file_path)`
+- `resurrect.fuzzy_load.start(window, pane)`
+- `resurrect.fuzzy_load.finished(window, pane)`
 - `resurrect.error(err)`
 - `resurrect.load_state.start(name, type)`
 - `resurrect.load_state.finished(name, type)`
