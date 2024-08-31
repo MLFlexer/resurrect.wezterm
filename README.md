@@ -226,7 +226,7 @@ which has the following types:
 
 ```lua
 ---@alias fmt_fun fun(label: string): string
----@alias fuzzy_load_opts {title: string, is_fuzzy: boolean, ignore_workspaces: boolean, ignore_tabs: boolean, ignore_windows: boolean, fmt_window: fmt_fun, fmt_workspace: fmt_fun, fmt_tab: fmt_fun }
+---@alias fuzzy_load_opts {title: string, description: string, fuzzy_description: string, is_fuzzy: boolean, ignore_workspaces: boolean, ignore_tabs: boolean, ignore_windows: boolean, fmt_window: fmt_fun, fmt_workspace: fmt_fun, fmt_tab: fmt_fun }
 ```
 
 This is used to format labels, ignore saved state, change the title and change the behaviour of the fuzzy finder.
@@ -254,6 +254,8 @@ This plugin emits the following events that you can use for your own callback fu
 
 - `resurrect.decrypt.start(file_path)`
 - `resurrect.decrypt.finished(file_path)`
+- `resurrect.delete_state.start(file_path)`
+- `resurrect.delete_state.finished(file_path)`
 - `resurrect.encrypt.start(file_path)`
 - `resurrect.encrypt.finished(file_path)`
 - `resurrect.fuzzy_load.start(window, pane)`
@@ -322,7 +324,7 @@ Here is an example of a json file:
                "is_active":true,
                "pane_tree":{
                   "cwd":"/home/user/",
-                  "domain": "SSHMUX:domain", -- key only exists if attached to remote domain
+                  "domain": "SSHMUX:domain",
                   "height":50,
                   "index":0,
                   "is_active":true,
@@ -342,6 +344,33 @@ Here is an example of a json file:
       }
    ],
    "workspace":"workspace_name"
+}
+```
+
+### Delete a saved state file via. fuzzy finder
+
+You can use the fuzzy finder to delete a saved state file by adding a keybind to your config:
+
+```lua
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+
+config.keys = {
+  -- ...
+  {
+    key = "d",
+    mods = "ALT",
+    action = wezterm.action_callback(function(win, pane)
+      resurrect.fuzzy_load(win, pane, function(id)
+          resurrect.delete_state(id)
+        end,
+        {
+          title = "Delete State",
+          description = "Select State to Delete and press Enter = accept, Esc = cancel, / = filter",
+          fuzzy_description = "Search State to Delete: ",
+          is_fuzzy = true,
+        })
+    end),
+  },
 }
 ```
 

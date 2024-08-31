@@ -301,13 +301,15 @@ function pub.periodic_save(opts)
 end
 
 ---@alias fmt_fun fun(label: string): string
----@alias fuzzy_load_opts {title: string, is_fuzzy: boolean, ignore_workspaces: boolean, ignore_tabs: boolean, ignore_windows: boolean, fmt_window: fmt_fun, fmt_workspace: fmt_fun, fmt_tab: fmt_fun }
+---@alias fuzzy_load_opts {title: string, description: string, fuzzy_description: string, is_fuzzy: boolean, ignore_workspaces: boolean, ignore_tabs: boolean, ignore_windows: boolean, fmt_window: fmt_fun, fmt_workspace: fmt_fun, fmt_tab: fmt_fun }
 
 ---Returns default fuzzy loading options
 ---@return fuzzy_load_opts
 function pub.get_default_fuzzy_load_opts()
 	return {
-		title = "Choose State to Load",
+		title = "Load State",
+		description = "Select State to Load and press Enter = accept, Esc = cancel, / = filter",
+		fuzzy_description = "Search State to Load: ",
 		is_fuzzy = true,
 		ignore_workspaces = false,
 		ignore_windows = false,
@@ -344,6 +346,14 @@ function pub.fuzzy_load(window, pane, callback, opts)
 
 	if opts == nil then
 		opts = pub.get_default_fuzzy_load_opts()
+	else
+		-- Merge user opts with defaults
+		local default_opts = pub.get_default_fuzzy_load_opts()
+		for k, v in pairs(default_opts) do
+			if opts[k] == nil then
+				opts[k] = v
+			end
+		end
 	end
 
 	local function insert_choices(type, fmt)
@@ -381,11 +391,25 @@ function pub.fuzzy_load(window, pane, callback, opts)
 				wezterm.emit("resurrect.fuzzy_load.finished", window, pane)
 			end),
 			title = opts.title,
+			description = opts.description,
+			fuzzy_description = opts.fuzzy_description,
 			choices = state_files,
 			fuzzy = opts.is_fuzzy,
 		}),
 		pane
 	)
+end
+
+---@param file_path string
+function pub.delete_state(file_path)
+	wezterm.emit("resurrect.delete_state.start", file_path)
+	local path = pub.save_state_dir .. file_path
+	local success = os.remove(path)
+	if not success then
+		wezterm.emit("resurrect.error", "Failed to delete state: " .. path)
+		wezterm.log_error("Failed to delete state: " .. path)
+	end
+	wezterm.emit("resurrect.delete_state.finished", file_path)
 end
 
 -- Export submodules
