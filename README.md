@@ -263,7 +263,7 @@ This plugin emits the following events that you can use for your own callback fu
 - `resurrect.error(err)`
 - `resurrect.load_state.start(name, type)`
 - `resurrect.load_state.finished(name, type)`
-- `resurrect.periodic_save`
+- `resurrect.periodic_save(opts)`
 - `resurrect.sanitize_json.start(data)`
 - `resurrect.sanitize_json.finished(data)`
 - `resurrect.save_state.start(file_path)`
