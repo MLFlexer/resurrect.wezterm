@@ -98,43 +98,16 @@ function pub.restore_tab(tab, tab_state, opts)
 	wezterm.emit("resurrect.tab_state.restore_tab.finished")
 end
 
----@param process string
----@return boolean
-function pub.is_shell_process(process)
-	if process == nil then
-		return false
-	end
-
-	process = process:match("^.*[/\\](.+)$")
-	local shells = {
-		bash = true,
-		zsh = true,
-		fish = true,
-		sh = true,
-		["pwsh.exe"] = true,
-		["cmd.exe"] = true,
-	}
-
-	if shells[process] then
-		return true
-	else
-		return false
-	end
-end
-
 --- Function to restore text or processes when restoring panes
 ---@param pane_tree pane_tree
 function pub.default_on_pane_restore(pane_tree)
 	local pane = pane_tree.pane
 
-	-- if not using alt screen (process like vim or less) and there is text
-	-- then safe to inject
-	if not pane_tree.alt_screen_active and pane_tree.text then
+	-- Spawn process if using alt screen, otherwise restore text
+	if pane_tree.alt_screen_active then
+		pane:send_text(wezterm.shell_join_args(pane_tree.process.argv) .. "\r\n")
+	else
 		pane:inject_output(pane_tree.text:gsub("%s+$", ""))
-	-- if alt screen, there is a process, which is not a shell
-	-- then run that process
-	elseif pane_tree.alt_screen_active and pane_tree.process and not pub.is_shell_process(pane_tree.process) then
-		pane:send_text(pane_tree.process .. "\r\n")
 	end
 end
 

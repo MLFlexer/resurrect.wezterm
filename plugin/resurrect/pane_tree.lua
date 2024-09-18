@@ -7,7 +7,8 @@ pub.max_nlines = 3500
 
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}
----@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string, cwd: string, domain?: string, process: string, pane: Pane?, is_active: boolean, is_zoomed: boolean, alt_screen_active: boolean}
+---@alias pane_tree {left: integer, top: integer, height: integer, width: integer, bottom: pane_tree?, right: pane_tree?, text: string, cwd: string, domain?: string, process?: local_process_info?, pane: Pane?, is_active: boolean, is_zoomed: boolean, alt_screen_active: boolean}
+---@alias local_process_info {name: string, argv: string[], cwd: string, executable: string}
 
 --- checks if the user is on windows
 local is_windows = wezterm.target_triple == "x86_64-pc-windows-msvc"
@@ -94,11 +95,16 @@ local function insert_panes(root, panes)
 
 		if domain == "local" then
 			-- pane:inject_output() is unavailable for non-local domains,
-			-- not saving scrollback because it would slow down the process
+			-- only saving local scrollback because it would slow down the process
 			-- See: https://github.com/MLFlexer/resurrect.wezterm/issues/41
-			root.process = root.pane:get_foreground_process_name()
 			root.alt_screen_active = root.pane:is_alt_screen_active()
-			if not root.alt_screen_active then
+			if root.alt_screen_active then
+				local process_info = root.pane:get_foreground_process_info()
+				process_info.children = nil
+				process_info.pid = nil
+				process_info.ppid = nil
+				root.process = process_info
+			else
 				local nlines = root.pane:get_dimensions().scrollback_rows
 				if nlines > pub.max_nlines then
 					nlines = pub.max_nlines
