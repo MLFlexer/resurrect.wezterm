@@ -98,15 +98,16 @@ function pub.restore_tab(tab, tab_state, opts)
 	wezterm.emit("resurrect.tab_state.restore_tab.finished")
 end
 
+--- Function to restore text or processes when restoring panes
+---@param pane_tree pane_tree
 function pub.default_on_pane_restore(pane_tree)
 	local pane = pane_tree.pane
 
-	if pane_tree_mod.get_shell_process(pane_tree.process) then
-		pane:inject_output(pane_tree.text)
+	-- Spawn process if using alt screen, otherwise restore text
+	if pane_tree.alt_screen_active then
+		pane:send_text(wezterm.shell_join_args(pane_tree.process.argv) .. "\r\n")
 	else
-		if pane_tree.process then
-			pane:send_text(pane_tree.process .. "\r\n")
-		end
+		pane:inject_output(pane_tree.text:gsub("%s+$", ""))
 	end
 end
 
