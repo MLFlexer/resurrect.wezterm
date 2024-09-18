@@ -98,6 +98,31 @@ function pub.restore_tab(tab, tab_state, opts)
 	wezterm.emit("resurrect.tab_state.restore_tab.finished")
 end
 
+function pub.save_tab_action()
+	return wezterm.action_callback(function(win, pane)
+		local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+		local tab = pane:tab()
+		if tab:get_title() == "" then
+			win:perform_action(
+				wezterm.action.PromptInputLine({
+					description = "Enter new window title",
+					action = wezterm.action_callback(function(_, callback_pane, title)
+						if title then
+							callback_pane:tab():set_title(title)
+							local state = pub.get_tab_state(tab)
+							resurrect.save_state(state)
+						end
+					end),
+				}),
+				pane
+			)
+		elseif tab:get_title() then
+			local state = pub.get_tab_state(tab)
+			resurrect.save_state(state)
+		end
+	end)
+end
+
 --- Function to restore text or processes when restoring panes
 ---@param pane_tree pane_tree
 function pub.default_on_pane_restore(pane_tree)
