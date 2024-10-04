@@ -22,7 +22,7 @@ local wezterm = require("wezterm")
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
 ```
 
-2. Saving workspace and/or window state based on name and title:
+2. Saving workspace, window and/or tab state based on name and title:
 
 ```lua
 local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
@@ -40,6 +40,11 @@ config.keys = {
     key = "W",
     mods = "ALT",
     action = resurrect.window_state.save_window_action(),
+  },
+  {
+    key = "T",
+    mods = "ALT",
+    action = resurrect.tab_state.save_tab_action(),
   },
   {
     key = "s",
@@ -60,34 +65,34 @@ local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.
 config.keys = {
   -- ...
   {
-    key = "l",
-    mods = "ALT",
-    action = wezterm.action_callback(function(win, pane)
-      resurrect.fuzzy_load(win, pane, function(id, label)
-        local type = string.match(id, "^([^/]+)") -- match before '/'
-        id = string.match(id, "([^/]+)$") -- match after '/'
-        id = string.match(id, "(.+)%..+$") -- remove file extension
-        local state
-        if type == "workspace" then
-          state = resurrect.load_state(id, "workspace")
-          resurrect.workspace_state.restore_workspace(state, {
-            relative = true,
-            restore_text = true,
-            on_pane_restore = resurrect.tab_state.default_on_pane_restore,
-          })
-        elseif type == "window" then
-          state = resurrect.load_state(id, "window")
-          resurrect.window_state.restore_window(pane:window(), state, {
-            relative = true,
-            restore_text = true,
-            on_pane_restore = resurrect.tab_state.default_on_pane_restore,
-            -- uncomment this line to use active tab when restoring
-            -- tab = win:active_tab(),
-          })
-        end
-      end)
-    end),
-  },
+		key = "r",
+		mods = "ALT",
+		action = wezterm.action.Multiple({
+			wezterm.action_callback(function(win, pane)
+				resurrect.fuzzy_load(win, pane, function(id, label)
+					local type = string.match(id, "^([^/]+)") -- match before '/'
+					id = string.match(id, "([^/]+)$") -- match after '/'
+					id = string.match(id, "(.+)%..+$") -- remove file extention
+					local opts = {
+						relative = true,
+						restore_text = true,
+						on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+					}
+					local state
+					if type == "workspace" then
+						state = resurrect.load_state(id, "workspace")
+						resurrect.workspace_state.restore_workspace(state, opts)
+					elseif type == "window" then
+						state = resurrect.load_state(id, "window")
+						resurrect.window_state.restore_window(pane:window(), state, opts)
+					elseif type == "tab" then
+						state = resurrect.load_state(id, "tab")
+						resurrect.tab_state.restore_tab(pane:tab(), state, opts)
+					end
+				end)
+			end),
+		}),
+	},
 }
 ```
 
@@ -202,12 +207,13 @@ You can checkout my configuration [here](https://github.com/MLFlexer/.dotfiles/t
 You can add the `opts` table to change the behaviour. It exposes the following options:
 
 ```lua
----@param opts? { interval_seconds: integer?, save_workspaces: boolean?, save_windows: boolean? }
+---@param opts? { interval_seconds: integer?, save_workspaces: boolean?, save_windows: boolean?, save_tabs: boolean? }
 ```
 
 `interval_seconds` will save the state every time the supplied number of seconds has surpassed.
 `save_workspaces` will save workspaces if true otherwise not.
 `save_windows` will save windows if true otherwise not.
+`save_tabs` will save tabs if true otherwise not.
 
 ### Limiting the amount of output lines saved for a pane
 
