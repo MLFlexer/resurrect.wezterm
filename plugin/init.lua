@@ -296,6 +296,18 @@ function pub.periodic_save(opts)
 			end
 		end
 
+		if opts.save_tabs then
+			for _, gui_win in ipairs(wezterm.gui.gui_windows()) do
+				local mux_win = gui_win:mux_window()
+				for _, mux_tab in ipairs(mux_win:tabs()) do
+					local title = mux_tab:get_title()
+					if title ~= "" and title ~= nil then
+						pub.save_state(pub.tab_state.get_tab_state(mux_tab))
+					end
+				end
+			end
+		end
+
 		pub.periodic_save(opts)
 	end)
 end
