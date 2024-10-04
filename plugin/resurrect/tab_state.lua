@@ -105,7 +105,7 @@ function pub.save_tab_action()
 		if tab:get_title() == "" then
 			win:perform_action(
 				wezterm.action.PromptInputLine({
-					description = "Enter new window title",
+					description = "Enter new tab title",
 					action = wezterm.action_callback(function(_, callback_pane, title)
 						if title then
 							callback_pane:tab():set_title(title)
