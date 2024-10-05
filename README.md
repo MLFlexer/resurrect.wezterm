@@ -77,15 +77,14 @@ config.keys = {
           restore_text = true,
           on_pane_restore = resurrect.tab_state.default_on_pane_restore,
         }
-        local state
         if type == "workspace" then
-          state = resurrect.load_state(id, "workspace")
+          local state = resurrect.load_state(id, "workspace")
           resurrect.workspace_state.restore_workspace(state, opts)
         elseif type == "window" then
-          state = resurrect.load_state(id, "window")
+          local state = resurrect.load_state(id, "window")
           resurrect.window_state.restore_window(pane:window(), state, opts)
         elseif type == "tab" then
-          state = resurrect.load_state(id, "tab")
+          local state = resurrect.load_state(id, "tab")
           resurrect.tab_state.restore_tab(pane:tab(), state, opts)
         end
       end)
