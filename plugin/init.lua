@@ -57,7 +57,12 @@ local function get_file_path(file_name, type, opt_name)
 	if opt_name then
 		file_name = opt_name
 	end
-	return string.format("%s%s" .. separator .. "%s.json", pub.save_state_dir, type, file_name:gsub(separator, "+"))
+	return string.format(
+		"%s%s" .. separator .. "%s.json",
+		pub.save_state_dir,
+		type,
+		file_name:gsub(separator, "+"):gsub("*", "_ASTR_")
+	)
 end
 
 ---executes cmd and passes input to stdin
