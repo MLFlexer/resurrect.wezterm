@@ -101,6 +101,93 @@ local function insert_panes(root, panes)
 				process_info.children = nil
 				process_info.pid = nil
 				process_info.ppid = nil
+
+				local nix_store = '/nix/store/'
+
+				-- Since NixOS uses immutable paths for executables,
+				-- we need to sanitize them before saving,
+				-- otherwise restoring sessions will be a pain.
+				if process_info.executable and process_info.executable:find(nix_store) then
+					-- Replace executable path with `process_info.name`,
+					-- because nix store paths are not stable across sessions,
+					-- as well as being long and ugly.
+					--
+					-- Plus they pollute shell history if restored as part of `executable` + `argv`.
+					process_info.executable = process_info.name or process_info.executable
+
+					-- Clean up `process_info.argv` by removing command flags followed by `*/nix/store/*` paths.
+					--
+					-- Original `argv` stored by `resurrect.wezterm` before sanitization:
+					--
+					-- [
+					--   "/nix/store/jx332jllgyrqbnzi8svnk8xbygc9nbmp-neovim-unwrapped-0.11.5/bin/nvim",
+					--   "--cmd",
+					--   "lua vim.g.loaded_node_provider=0;vim.g.loaded_perl_provider=0;vim.g.loaded_python_provider=0;vim.g.python3_host_prog='/nix/store/252cmdyhmr8ai7qz266yrawgmx7nfz5h-neovim-0.11.5/bin/nvim-python3';vim.g.ruby_host_prog='/nix/store/252cmdyhmr8ai7qz266yrawgmx7nfz5h-neovim-0.11.5/bin/nvim-ruby'",
+					--   "--cmd",
+					--   "set packpath^=/nix/store/g0f4d93y9q79q84qq4g41lyfcw3i1z7h-vim-pack-dir",
+					--   "--cmd",
+					--   "set rtp^=/nix/store/g0f4d93y9q79q84qq4g41lyfcw3i1z7h-vim-pack-dir",
+					--   "Cargo.toml"
+					-- ]
+					--
+					-- Sanitized `argv` after processing:
+					-- [
+					--   "nvim",
+					--   "Cargo.toml",
+					-- ]
+					--
+					-- Meaning that any `--cmd` or `-c` flags containing `/nix/store/*` paths are removed entirely from `argv`,
+					-- while keeping other arguments intact.
+					--
+					-- On restoration, the executable will be resolved via `PATH`,
+					-- so as long as `nvim`/`vim`/`gvim` is available in `PATH`, it should work fine.
+					if process_info.argv then
+						local args = {}
+						local flag = nil
+						local executables = {
+							nvim = true,
+							vim = true,
+							gvim = true,
+						}
+						local is_vim = executables[process_info.executable]
+
+						for i, arg in ipairs(process_info.argv) do
+							if i == 1 then
+								-- Ensure first element of `argv` is the `executable` path,
+								-- which we have already sanitized above.
+								args[#args + 1] = process_info.executable
+							else
+								if is_vim == nil then
+									-- For non-vim executables, we only need to sanitize the `executable` path,
+									-- so we can keep the rest of `argv` as is.
+
+									args[#args + 1] = arg
+								else
+									if arg == '--cmd' or arg == '-c' then
+										-- Save current flag for later use, in case next `arg` is `/nix/store/*` path (see next condition).
+										flag = arg
+									elseif flag ~= nil then
+										if arg:find(nix_store) then
+											-- Skip this `arg` as it contains `/nix/store/*` path
+											-- Do not add anything to `args`
+										else
+											-- Not a nix store path, keep both `flag` and `arg` (value).
+											args[#args + 1] = flag
+											args[#args + 1] = arg
+										end
+
+										flag = nil
+									else
+										args[#args + 1] = arg
+									end
+								end
+							end
+						end
+
+						process_info.argv = args
+					end
+				end
+
 				root.process = process_info
 			else
 				local nlines = root.pane:get_dimensions().scrollback_rows
