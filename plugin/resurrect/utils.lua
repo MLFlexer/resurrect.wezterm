@@ -71,11 +71,43 @@ end
 -- Create the folder if it does not exist
 ---@param path string
 function utils.ensure_folder_exists(path)
+	local sep
 	if utils.is_windows then
-		os.execute('mkdir /p "' .. path:gsub("/", "\\" .. '"'))
+		-- assuming path is non-windows and that windows paths have
+		-- inferior support for allowed characters
+		sep = "\\"
+		path = path:gsub("/", sep)
 	else
-		os.execute('mkdir -p "' .. path .. '"')
+		sep = "/"
 	end
+
+	local parts = {}
+	for part in string.gmatch(path, "[^" .. sep .. "]+") do
+		table.insert(parts, part)
+	end
+
+	local current = ""
+	for i, part in ipairs(parts) do
+		current = current == "" and part or (current .. sep .. part)
+
+		-- Check if the folder exists by attempting rename
+		local ok = os.rename(current, current)
+		if not ok then
+			-- Pure Lua "mkdir" using io.open
+			-- Create a temp file inside the directory to force the folder to exist
+			local tmp = current .. sep .. ".mkdir_tmp"
+			local f = io.open(tmp, "w")
+			if f then
+				f:close()
+				os.remove(tmp)
+			else
+				-- directory creation failed
+				return false
+			end
+		end
+	end
+
+	return true
 end
 
 -- deep copy
