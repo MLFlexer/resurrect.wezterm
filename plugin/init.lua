@@ -11,7 +11,7 @@ local function init()
 	-- enable_sub_modules()
 	local opts = {
 		auto = true,
-		keywords = { "github", "MLFlexer", "resurrect", "wezterm" },
+		keywords = { "resurrect", "wezterm" },
 	}
 	local plugin_path = dev.setup(opts)
 
