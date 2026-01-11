@@ -65,3 +65,21 @@
 ---@field is_active boolean
 ---@field is_zoomed boolean
 ---@field alt_screen_active boolean
+
+---@class RawTabData
+---@field title string
+---@field panes RawPaneData[]
+---@field is_active boolean
+---@field is_zoomed boolean
+
+---@class RawWindowData
+---@field title string
+---@field tabs RawTabData[]
+---@field size TabSize?
+
+---@class ShellApi
+---@field extract_pane fun(pane: Pane, max_lines: number): RawPaneData
+---@field extract_panes fun(pane_infos: PaneInformation[], max_lines: number): RawPaneData[]
+---@field extract_tab fun(mux_tab: MuxTab, max_lines: number): RawTabData
+---@field extract_window fun(mux_win: MuxWindow, max_lines: number): RawWindowData
+---@field warn_not_spawnable fun(domain: string): nil
