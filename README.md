@@ -306,9 +306,6 @@ wezterm.on("update-status", function(window, pane)
 end)
 ```
 
-The marker file lives in `resurrect.state_manager.save_state_dir` (the same directory
-as your saved state), so it works cross-platform without relying on `/tmp`.
-
 > [!NOTE]
 > You still need a mechanism to keep `current_state` up to date. Using
 > `resurrect.state_manager.event_driven_save` or saving on `gui-detach` are both
