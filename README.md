@@ -261,6 +261,7 @@ if not wezterm.GLOBAL.mux_initialized then
   end
 end
 local _startup_restore_done = false
+local _startup_restore_first_check = nil -- set on first tick while waiting for marker
 
 -- In your update-status handler, check for the marker before rendering the status bar.
 wezterm.on("update-status", function(window, pane)
@@ -290,6 +291,7 @@ wezterm.on("update-status", function(window, pane)
                 spawn_in_workspace = true,
                 relative = true,
                 restore_text = true,
+                resize_window = false,
                 on_pane_restore = resurrect.tab_state.default_on_pane_restore,
               })
               wezterm.mux.set_active_workspace(name)
@@ -298,7 +300,14 @@ wezterm.on("update-status", function(window, pane)
         end
       end
     else
-      _startup_restore_done = true
+      -- No marker yet. The GUI's first update-status tick can fire before the
+      -- mux server has written the marker, so retry for up to 15 seconds.
+      if not _startup_restore_first_check then
+        _startup_restore_first_check = os.time()
+      elseif (os.time() - _startup_restore_first_check) > 15 then
+        -- No fresh-mux marker after 15 s — this is a reconnect, not a cold start.
+        _startup_restore_done = true
+      end
     end
   end
 
