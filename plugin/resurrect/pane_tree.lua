@@ -99,10 +99,10 @@ local function insert_panes(root, panes)
 			if root.alt_screen_active then
 				local process_info = root.pane:get_foreground_process_info()
 				if process_info ~= nil then
-          process_info.children = nil
-          process_info.pid = nil
-          process_info.ppid = nil
-        end
+					process_info.children = nil
+					process_info.pid = nil
+					process_info.ppid = nil
+				end
 				root.process = process_info
 				root.proc_name = root.pane:get_foreground_process_name()
 			else
