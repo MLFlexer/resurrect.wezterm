@@ -5,6 +5,7 @@ local utils = require("resurrect.utils")
 ---@field max_nlines integer
 local pub = {}
 pub.max_nlines = 3500
+pub.save_non_local_domains = false
 
 ---@alias Pane any
 ---@alias PaneInformation {left: integer, top: integer, height: integer, width: integer}
@@ -91,9 +92,9 @@ local function insert_panes(root, panes)
 			end
 		end
 
-		if domain == "local" then
-			-- pane:inject_output() is unavailable for non-local domains,
-			-- only saving local scrollback because it would slow down the process
+		if domain == "local" or pub.save_non_local_domains then
+			-- pane:inject_output() is unavailable for non-local domains; opt in via
+			-- pub.save_non_local_domains = true (restore via send_text workaround needed)
 			-- See: https://github.com/MLFlexer/resurrect.wezterm/issues/41
 			root.alt_screen_active = root.pane:is_alt_screen_active()
 			if root.alt_screen_active then
