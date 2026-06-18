@@ -75,6 +75,13 @@ local function insert_panes(root, panes)
 		return nil
 	end
 
+	-- Guard against duplicate processing in symmetric layouts
+	-- In a perfect cross layout, a pane can appear in both right and bottom branches
+	-- If already processed by another branch, skip to avoid nil pane access
+	if root.pane == nil then
+		return root
+	end
+
 	local domain = root.pane:get_domain_name()
 	if not wezterm.mux.get_domain(domain):is_spawnable() then
 		wezterm.log_warn("Domain " .. domain .. " is not spawnable")
