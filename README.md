@@ -233,6 +233,98 @@ This will read a file which has been written by the
 > For this to work, you must include a way to write the current workspace,
 > be it via. the `resurrect.state_manager.periodic_save` event or when changing workspaces.
 
+### Resurrecting on startup when using a unix domain mux
+
+If you use a [unix domain](https://wezfurlong.org/wezterm/multiplexing.html#unix-domains)
+to keep your mux server alive across GUI close/reopen:
+
+```lua
+config.unix_domains = { { name = "unix" } }
+config.default_gui_startup_args = { "connect", "unix" }
+```
+
+then `gui-startup` is **never emitted** — wezterm enters connect mode immediately and
+skips the startup event entirely. `resurrect_on_gui_startup` will silently do nothing.
+
+The workaround uses `wezterm.GLOBAL` (which persists across hot-reloads but resets when
+the process restarts) to detect the mux server's first config load, and `wezterm.gui`
+(which is `nil` in the headless mux server but a real table in the GUI) to distinguish
+the two processes. The mux server writes a small marker file; the GUI reads and deletes
+it in `update-status` for a one-shot restore.
+
+```lua
+-- Written once when the mux server process starts for the first time.
+-- wezterm.GLOBAL persists across hot-reloads so config edits don't re-trigger it.
+-- wezterm.gui is nil in the headless mux server and a real table in the GUI.
+if not wezterm.GLOBAL.mux_initialized then
+  wezterm.GLOBAL.mux_initialized = true
+  if not wezterm.gui then
+    -- Running in the mux server: leave a marker for the GUI to find.
+    local marker = resurrect.state_manager.save_state_dir .. "fresh-mux"
+    local f = io.open(marker, "w")
+    if f then f:write(tostring(os.time())); f:close() end
+  end
+end
+local _startup_restore_done = false
+local _startup_restore_first_check = nil -- set on first tick while waiting for marker
+
+-- In your update-status handler, check for the marker before rendering the status bar.
+wezterm.on("update-status", function(window, pane)
+  if not _startup_restore_done then
+    local marker = resurrect.state_manager.save_state_dir .. "fresh-mux"
+    local mf = io.open(marker, "r")
+    if mf then
+      _startup_restore_done = true
+      local t = tonumber(mf:read("*l"))
+      mf:close()
+      os.remove(marker)
+      -- Only restore if the marker is fresh (guards against a leftover file
+      -- from a previous crashed session).
+      if t and (os.time() - t) < 30 then
+        local sf = io.open(resurrect.state_manager.save_state_dir .. "current_state", "r")
+        if sf then
+          local name = sf:read("*l")
+          local type_str = sf:read("*l")
+          sf:close()
+          if type_str == "workspace" then
+            local ok, state = pcall(resurrect.state_manager.load_state, name, type_str)
+            if ok and state then
+              resurrect.workspace_state.restore_workspace(state, {
+                window = window:mux_window(),
+                close_open_tabs = true,
+                close_open_panes = true,
+                spawn_in_workspace = true,
+                relative = true,
+                restore_text = true,
+                resize_window = false,
+                on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+              })
+              wezterm.mux.set_active_workspace(name)
+            end
+          end
+        end
+      end
+    else
+      -- No marker yet. The GUI's first update-status tick can fire before the
+      -- mux server has written the marker, so retry for up to 15 seconds.
+      if not _startup_restore_first_check then
+        _startup_restore_first_check = os.time()
+      elseif (os.time() - _startup_restore_first_check) > 15 then
+        -- No fresh-mux marker after 15 s — this is a reconnect, not a cold start.
+        _startup_restore_done = true
+      end
+    end
+  end
+
+  -- ... rest of your update-status handler
+end)
+```
+
+> [!NOTE]
+> You still need a mechanism to keep `current_state` up to date. Using
+> `resurrect.state_manager.event_driven_save` or saving on `gui-detach` are both
+> good options.
+
 ### Limiting the amount of output lines saved for a pane
 
 `resurrect.state_manager.set_max_nlines(number)` will limit each pane to save
