@@ -72,7 +72,7 @@ end
 ---@param path string
 function utils.ensure_folder_exists(path)
 	if utils.is_windows then
-		os.execute('mkdir /p "' .. path:gsub("/", "\\" .. '"'))
+		os.execute('mkdir "' .. path:gsub("/", "\\") .. '"')
 	else
 		os.execute('mkdir -p "' .. path .. '"')
 	end
