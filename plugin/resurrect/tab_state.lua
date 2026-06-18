@@ -151,7 +151,11 @@ function pub.default_on_pane_restore(pane_tree)
 
 	-- Spawn process if using alt screen, otherwise restore text
 	if pane_tree.alt_screen_active then
-		pane:send_text(wezterm.shell_join_args(pane_tree.process.argv) .. "\r\n")
+		if pane_tree.process ~= nil then
+			pane:send_text(wezterm.shell_join_args(pane_tree.process.argv) .. "\r\n")
+		elseif pane_tree.proc_name ~= nil then
+			pane:send_text(pane_tree.proc_name .. "\r\n")
+		end
 	elseif pane_tree.text then
 		pane:inject_output(pane_tree.text:gsub("%s+$", ""))
 	end
