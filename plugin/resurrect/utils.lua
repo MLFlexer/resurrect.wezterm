@@ -68,14 +68,128 @@ function utils.execute(cmd)
 	end
 end
 
--- Create the folder if it does not exist
----@param path string
-function utils.ensure_folder_exists(path)
+-- Shell-safe wrapper around mkdir for a single already-assembled path segment.
+-- On Unix, single-quote wrapping is used so that spaces and most metacharacters
+-- are inert; embedded single quotes are escaped with the '\'' idiom.
+-- On Windows, " is not a valid NTFS filename character so we validate and reject
+-- rather than attempt to escape it; remaining quoting via double-quotes is safe.
+local function shell_mkdir(path)
 	if utils.is_windows then
-		os.execute('mkdir /p "' .. path:gsub("/", "\\" .. '"'))
+		if path:find('"') then
+			return false
+		end
+		return os.execute('mkdir "' .. path .. '"')
 	else
-		os.execute('mkdir -p "' .. path .. '"')
+		local quoted = "'" .. path:gsub("'", "'\\''") .. "'"
+		return os.execute("mkdir " .. quoted)
 	end
+end
+
+-- Normalise separators and strip the root prefix from path.
+-- Returns the platform separator, the root component (e.g. "C:\", "/", "\\"),
+-- and the remaining path with the root removed.
+-- On Windows forward slashes are converted to backslashes before parsing.
+---@param path string
+---@return string sep, string root, string stripped
+local function parse_root(path)
+	local sep
+	if utils.is_windows then
+		sep = "\\"
+		path = path:gsub("/", sep)
+	else
+		sep = "/"
+	end
+
+	local root = ""
+	if utils.is_windows then
+		local drive = path:match("^(%a:)[/\\]")
+		if drive then
+			-- Absolute path (e.g. C:\foo): capture "C:", append sep to form "C:\",
+			-- then strip the 3-char prefix so the remainder is "foo\...".
+			root = drive .. sep
+			path = path:sub(4)
+		elseif path:match("^%a:[^/\\]") then
+			-- Drive-relative path (e.g. C:foo); normalise to absolute from drive root.
+			-- Strip the 2-char "C:" prefix; root gets the explicit separator added.
+			root = path:sub(1, 2) .. sep
+			path = path:sub(3)
+		elseif path:sub(1, 2) == "\\\\" then
+			-- UNC path (e.g. \\server\share\...): strip the 2-char "\\" prefix.
+			-- The server and share components cannot be created via mkdir;
+			-- this only works when the share already exists.
+			root = "\\\\"
+			path = path:sub(3)
+		end
+	else
+		if path:sub(1, 1) == "/" then
+			-- Absolute Unix path: strip the leading separator; root is "/".
+			root = "/"
+			path = path:sub(2)
+		end
+	end
+
+	return sep, root, path
+end
+
+-- Probe-write check: attempts to create and immediately remove a temp file
+-- inside path. More reliable than os.rename on Windows, where open handles
+-- held by WezTerm itself cause os.rename(dir, dir) to return nil even when
+-- the directory exists and is fully usable.
+-- A unique suffix from tostring({}) (table address) avoids collisions across
+-- concurrent processes or calls.
+local function dir_is_accessible(path)
+	local probe = path .. utils.separator .. ".resurrect_probe_" .. tostring({}):gsub("[^%w]", "")
+	local f = io.open(probe, "w")
+	if f then
+		f:close()
+		os.remove(probe)
+		return true
+	end
+	return false
+end
+
+-- Ensure a single already-assembled path exists, creating it if necessary.
+-- Returns false if the directory could not be created or verified.
+---@param path string
+---@return boolean
+local function mkdir_if_missing(path)
+	-- Probe-write is the primary existence check. os.rename is skipped because
+	-- it gives false negatives on Windows when WezTerm holds open handles,
+	-- which would cause shell_mkdir to be called on every startup for
+	-- directories that already exist, producing visible cmd.exe window flashes.
+	if dir_is_accessible(path) then
+		return true
+	end
+	if shell_mkdir(path) then
+		-- Post-verify: confirm the directory is actually usable after creation.
+		return dir_is_accessible(path)
+	end
+	return false
+end
+
+-- Create the folder if it does not exist.
+-- Drive-relative paths on Windows (e.g. C:foo\bar) are normalised to absolute
+-- from the drive root (C:\foo\bar). UNC paths (\\server\share\...) are
+-- supported only when the server and share components already exist.
+-- Path components are not sanitized; . and .. segments produce undefined behavior.
+---@param path string
+---@return boolean success
+function utils.ensure_folder_exists(path)
+	local sep, root, stripped = parse_root(path)
+	local current = root
+	for part in string.gmatch(stripped, "[^" .. sep .. "]+") do
+		if current == "" then
+			current = part
+		elseif current:sub(-1) == sep then
+			current = current .. part
+		else
+			current = current .. sep .. part
+		end
+		if not mkdir_if_missing(current) then
+			return false
+		end
+	end
+	return true
 end
 
 -- deep copy

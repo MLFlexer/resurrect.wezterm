@@ -510,6 +510,35 @@ to see where they are stored. You can then update them individually using git pu
 
 Add `wezterm.plugin.update_all()` to your Wezterm config.
 
+## Testing
+
+Tests are run with Busted via LuaRocks.
+
+All OSes:
+
+```sh
+luarocks install busted
+```
+
+Run tests:
+
+```sh
+eval "$(luarocks path)"
+busted
+```
+
+Windows notes:
+
+- PowerShell is the most reliable shell for running LuaRocks and Busted (Git Bash/MSYS can mangle arguments and paths).
+- If `luarocks install busted` fails while building native dependencies (for example `luasystem`), install a GCC toolchain (MinGW-w64 or MSYS2 MinGW64) and make sure its `bin` directory is on `PATH` for the PowerShell session.
+
+PowerShell usage:
+
+```powershell
+Invoke-Expression (luarocks path)
+busted
+```
+
 ## Contributions
 
 Suggestions, Issues and PRs are welcome!

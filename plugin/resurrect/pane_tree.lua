@@ -87,7 +87,13 @@ local function insert_panes(root, panes)
 		else
 			root.cwd = root.pane:get_current_working_dir().file_path
 			if utils.is_windows then
+				-- WezTerm returns file_path as /C:/... on Windows; strip the leading slash.
 				root.cwd = root.cwd:gsub("^/([a-zA-Z]):", "%1:")
+				-- WSL mounts Windows drives at /mnt/c/...; convert to C:\... so that
+				-- WezTerm's mux can validate the path in Windows context before spawning.
+				root.cwd = root.cwd:gsub("^/mnt/([a-zA-Z])(.*)", function(drive, rest)
+					return drive:upper() .. ":" .. rest:gsub("/", "\\")
+				end)
 			end
 		end
 
