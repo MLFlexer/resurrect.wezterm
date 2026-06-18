@@ -217,6 +217,48 @@ You can add the `opts` table to change the behaviour. It exposes the following o
 `save_windows` will save windows if true otherwise not.
 `save_tabs` will save tabs if true otherwise not.
 
+### Event-driven saving of state
+
+`resurrect.state_manager.event_driven_save(opts?)` saves state immediately whenever
+the pane or tab structure changes (new split, new tab, closed pane), rather than
+waiting for a periodic timer. This is the recommended approach when you want
+state to always be current.
+
+```lua
+resurrect.state_manager.event_driven_save({
+  save_workspaces = true,  -- default: true
+  save_windows    = false, -- default: false
+  save_tabs       = false, -- default: false
+  user_var        = nil,   -- optional: name of a user variable to also trigger saves
+})
+```
+
+`save_workspaces`, `save_windows`, and `save_tabs` mirror the same options in `periodic_save`.
+
+`user_var` enables an additional save trigger via shell integration. When set, a save
+fires whenever the shell sends an OSC 1337 `SetUserVar` sequence with that variable name.
+This is useful for saving on directory change. Example shell integration (zsh/bash):
+
+```sh
+# In your .zshrc / .bashrc — fires only when $PWD changes
+_wezterm_precmd() {
+  if [[ "$PWD" != "$_WEZTERM_LAST_PWD" ]]; then
+    _WEZTERM_LAST_PWD="$PWD"
+    printf "\033]1337;SetUserVar=WEZTERM_SAVE=%s\007" "$(printf 1 | base64)"
+  fi
+}
+precmd_functions+=(_wezterm_precmd)
+```
+
+Then pass the matching variable name to `event_driven_save`:
+
+```lua
+resurrect.state_manager.event_driven_save({ user_var = "WEZTERM_SAVE" })
+```
+
+`event_driven_save` also keeps `current_state` up to date on every save, which is
+required for `resurrect_on_gui_startup` to restore the correct workspace.
+
 ### Resurrecting on startup
 
 You can resume from where you left off by resurrecting on startup with
@@ -349,6 +391,8 @@ This plugin emits the following events that you can use for your own callback fu
 - `resurrect.state_manager.delete_state.start(file_path)`
 - `resurrect.state_manager.load_state.finished(name, type)`
 - `resurrect.state_manager.load_state.start(name, type)`
+- `resurrect.state_manager.event_driven_save.start(opts)`
+- `resurrect.state_manager.event_driven_save.finished(opts)`
 - `resurrect.state_manager.periodic_save.start(opts)`
 - `resurrect.state_manager.periodic_save.finished(opts)`
 - `resurrect.file_io.write_state.finished(file_path, event_type)`

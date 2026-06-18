@@ -90,6 +90,80 @@ function pub.periodic_save(opts)
 	end)
 end
 
+---Saves the state whenever the pane or tab structure changes.
+---More responsive than periodic_save: fires immediately on splits, new tabs,
+---and closed panes rather than waiting for a timer.
+---Also supports an optional user variable trigger for shell-reported events
+---such as directory changes (requires shell integration to send the OSC 1337
+---SetUserVar sequence; see the README for details).
+---@param opts? { save_workspaces: boolean?, save_windows: boolean?, save_tabs: boolean?, user_var: string? }
+function pub.event_driven_save(opts)
+	opts = opts or {}
+	if opts.save_workspaces == nil then
+		opts.save_workspaces = true
+	end
+
+	local last_structure = {}
+
+	local function do_save(window)
+		wezterm.emit("resurrect.state_manager.event_driven_save.start", opts)
+
+		if opts.save_workspaces then
+			local workspace_state = require("resurrect.workspace_state").get_workspace_state()
+			pub.save_state(workspace_state)
+			pub.write_current_state(workspace_state.workspace, "workspace")
+		end
+
+		if opts.save_windows then
+			local mux_win = window:mux_window()
+			local title = mux_win:get_title()
+			if title ~= "" and title ~= nil then
+				pub.save_state(require("resurrect.window_state").get_window_state(mux_win))
+			end
+		end
+
+		if opts.save_tabs then
+			local mux_win = window:mux_window()
+			for _, mux_tab in ipairs(mux_win:tabs()) do
+				local title = mux_tab:get_title()
+				if title ~= "" and title ~= nil then
+					pub.save_state(require("resurrect.tab_state").get_tab_state(mux_tab))
+				end
+			end
+		end
+
+		wezterm.emit("resurrect.state_manager.event_driven_save.finished", opts)
+	end
+
+	-- Save when the pane/tab structure changes (new split, new tab, closed pane).
+	-- pane-focus-changed fires on every focus move, so we compare tab+pane counts
+	-- and only save when the structure actually changes.
+	wezterm.on("pane-focus-changed", function(window, pane)
+		local win_id = tostring(window:window_id())
+		local tabs = window:mux_window():tabs()
+		local pane_count = 0
+		for _, tab in ipairs(tabs) do
+			pane_count = pane_count + #tab:panes()
+		end
+		local sig = #tabs .. ":" .. pane_count
+		if last_structure[win_id] ~= sig then
+			last_structure[win_id] = sig
+			do_save(window)
+		end
+	end)
+
+	-- Optional: also save when the shell reports a user-defined variable change.
+	-- Useful for saving on directory change. Example shell integration (zsh/bash):
+	--   precmd() { printf "\033]1337;SetUserVar=WEZTERM_SAVE=%s\007" "$(printf 1 | base64)"; }
+	if opts.user_var then
+		wezterm.on("user-var-changed", function(window, pane, name, value)
+			if name == opts.user_var then
+				do_save(window)
+			end
+		end)
+	end
+end
+
 ---Writes the current state name and type
 ---@param name string
 ---@param type string
