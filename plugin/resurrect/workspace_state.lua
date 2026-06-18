@@ -42,6 +42,11 @@ function pub.restore_workspace(workspace_state, opts)
 
 		window_state_mod.restore_window(opts.window, window_state, opts)
 	end
+	if opts.spawn_in_workspace then
+		wezterm.mux.set_active_workspace(workspace_state.workspace)
+	else
+		wezterm.mux.rename_workspace(wezterm.mux.get_active_workspace(), workspace_state.workspace)
+	end
 	wezterm.emit("resurrect.workspace_state.restore_workspace.finished")
 end
 
