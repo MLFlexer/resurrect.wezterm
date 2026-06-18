@@ -1,6 +1,8 @@
 local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
 local tab_state_mod = require("resurrect.tab_state")
+local state_manager_mod = require("resurrect.state_manager")
 local pub = {}
+
 
 ---Returns the state of the window
 ---@param window MuxWindow
@@ -95,7 +97,7 @@ function pub.save_window_action()
 						if title then
 							window:mux_window():set_title(title)
 							local state = pub.get_window_state(mux_win)
-							resurrect.save_state(state)
+							state_manager_mod.save_state(state)
 						end
 					end),
 				}),
@@ -103,7 +105,7 @@ function pub.save_window_action()
 			)
 		elseif mux_win:get_title() then
 			local state = pub.get_window_state(mux_win)
-			resurrect.save_state(state)
+			state_manager_mod.save_state(state)
 		end
 	end)
 end

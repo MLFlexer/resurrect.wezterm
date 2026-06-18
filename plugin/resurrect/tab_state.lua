@@ -1,5 +1,6 @@
 local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
 local pane_tree_mod = require("resurrect.pane_tree")
+local state_manager_mod = require("resurrect.state_manager")
 local pub = {}
 
 ---Function used to split panes when mapping over the pane_tree
@@ -121,7 +122,6 @@ end
 
 function pub.save_tab_action()
 	return wezterm.action_callback(function(win, pane)
-		local resurrect = require("resurrect")
 		local tab = pane:tab()
 		if tab:get_title() == "" then
 			win:perform_action(
@@ -131,7 +131,7 @@ function pub.save_tab_action()
 						if title then
 							callback_pane:tab():set_title(title)
 							local state = pub.get_tab_state(tab)
-							resurrect.save_state(state)
+							state_manager_mod.save_state(state)
 						end
 					end),
 				}),
@@ -139,7 +139,7 @@ function pub.save_tab_action()
 			)
 		elseif tab:get_title() then
 			local state = pub.get_tab_state(tab)
-			resurrect.state_manager.save_state(state)
+			state_manager_mod.save_state(state)
 		end
 	end)
 end
